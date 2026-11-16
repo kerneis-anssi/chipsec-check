@@ -8,20 +8,29 @@ import sys
 from typing import List, Optional
 
 from uefi_policy.analyze import evaluate, gather_review
-from uefi_policy.parsers import available, create
+from uefi_policy.parsers import available, create, detect
 from uefi_policy.policy import Policy, PolicyError, load_policy, load_review, merge_review, save_policy, save_review
 from uefi_policy.reports import build_report, write_report
 
 
 def _read_source(path: str) -> str:
-    with open(path, "r", encoding="utf-8") as fh:
-        return fh.read()
+    with open(path, "rb") as fh:
+        raw = fh.read()
+    if raw.startswith(b"\xff\xfe") or raw.startswith(b"\xfe\xff"):
+        return raw.decode("utf-16")
+    try:
+        return raw.decode("utf-8")
+    except UnicodeDecodeError:
+        return raw.decode("latin-1", errors="replace")
 
 
 def cmd_dump(args: argparse.Namespace, stream=None) -> int:
     stream = stream or sys.stdout
     source = _read_source(args.input)
-    parser = create(args.format)
+    if args.format == "auto":
+        parser = detect(source)
+    else:
+        parser = create(args.format)
     options = parser.parse(source)
 
     policy = load_policy(args.policy)
@@ -66,8 +75,8 @@ def build_parser() -> argparse.ArgumentParser:
 
     dump = sub.add_parser("dump", help="analyze a configuration dump against a policy")
     dump.add_argument("input", help="path to the configuration dump text file")
-    dump.add_argument("--format", default="sysfs-txt", choices=available(),
-                      help="input parser (default: sysfs-txt)")
+    dump.add_argument("--format", default="auto", choices=["auto"] + available(),
+                      help="input parser (default: auto-detect)")
     dump.add_argument("--policy", required=True, help="policy JSON database")
     dump.add_argument("--report", metavar="OUT", help="also write the report to this text file")
     dump.add_argument("--review", nargs="?", const="auto", default=None,

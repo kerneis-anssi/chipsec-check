@@ -77,9 +77,18 @@ records**. All policy logic operates only on this model.
 ### Parser design (pluggable)
 
 - Base abstract parser interface: `parse(source) -> list[Option]`.
-- `SysfsTxtParser` (this task).
-- A registry / factory that selects a parser by input kind so an HP/other text
-  parser can be added later with no changes to the analyzer.
+- `SysfsTxtParser` (the `grep -R .` dump), format name `sysfs-txt`.
+- `HPSetupTxtParser` (HP `HPSetup.txt`-style reports), format name `hp-setup`,
+  read by the same CLI with `--format` or auto-detected from the text.
+- A registry / factory that selects a parser by input kind; `--format auto`
+  (default) sniffs sysfs vs HP-Setup structure from the text.
+- Capabilities of the HP Setup parser:
+  - `*`-prefixed value ⇒ enumeration (`possible_values` + `current_value`).
+  - single unmarked value ⇒ scalar `string`/`integer` current.
+  - multiple unmarked values ⇒ `ordered-list` (values = possible_values;
+    current = `;`-joined list, mirroring the sysfs dump).
+  - No vendor prefix in this format ⇒ namespaced under `hp-bioscfg/` to share
+    policy keys with the sysfs model.
 
 ## 3. Policy database (JSON)
 
@@ -198,7 +207,7 @@ analyze_uefi_cfg.py merge    --review REVIEW [--policy POL] [--backup]
 
 `dump` is the default action:
 - `--input` source dump path (mandatory).
-- `--format`/auto-detect parser.
+- `--format`/auto-detect parser (`auto` is default; `sysfs-txt`, `hp-setup`).
 - `--policy` path to policy JSON (required).
 - `--report` path for the text report copy (in addition to stdout).
 - `--review` path for the review file (auto-named if omitted: `<dump>.review.json`).

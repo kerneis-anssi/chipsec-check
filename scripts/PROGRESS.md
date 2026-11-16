@@ -39,6 +39,33 @@ support a manual review → merge workflow. See PLAN.md.
   `tests/test_policy.py`, plus a small fixture `tests/data/sample.txt`.
 - `README.md` with usage and file-format documentation.
 
+### Step 4 — HP Setup text format parser
+- Added `uefi_policy/parsers/hpsetup_txt.py` (`HPSetupTxtParser`, format
+  name `hp-setup`) for HP `HPSetup.txt`-style host reports.
+  - Format: option name lines followed by tab-indented value lines.
+  - `*`-prefixed value in a selectable option ⇒ enumeration (all listed values
+    are `possible_values`, the `*` one is `current_value`).
+  - Single value line, no `*` ⇒ scalar `string`/`integer` current value.
+  - Multiple value lines, no `*` ⇒ `ordered-list`: values are the
+    `possible_values`/elements and `current_value` is their `;`-joined form
+    (mirrors the sysfs dump, where an ordered-list current_value equals its
+    elements joined by `;`).
+  - No vendor prefix in this format ⇒ options namespaced under `hp-bioscfg/`
+    to share policy keys with the sysfs-derived model.
+- Format auto-detection (`--format auto`, the default): sniffs sysfs
+  (`/`-path + `:` lines) vs HP Setup (bare names) from the first non-empty /
+  non-indented line.
+- UTF-16 input support: `cli._read_source()` detects a UTF-16 BOM and decodes
+  accordingly (the HpSetup.txt fixture is UTF-16/CRLF).
+- Tests: `tests/test_hpsetup_parser.py` + `tests/data/hpsetup_sample.txt`.
+
+## Known caveats / notes
+- Cross-format name differences: the HP Setup report uses `/` where the sysfs
+  dump uses the FAT32-safe `!` and `/` (e.g. sysfs `Save!Restore GPT` vs
+  HP Setup `Save/Restore GPT`, `Processor 1 Cache Size (L1!L2!L3)` vs
+  `(L1/L2/L3)`). Both are namespaced `hp-bioscfg/<name>` but their policy keys
+  may therefore differ between sources for these options.
+
 ## Remaining / possible follow-ups
 - A separate review-only helper (plan mentions possible "separate script") —
   the review file already doubles as the manual artifact.

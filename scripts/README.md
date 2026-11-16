@@ -35,6 +35,19 @@ python3 analyze_uefi_cfg.py dump firmware-attributes.txt \
 python3 analyze_uefi_cfg.py merge --review review.json --policy policy.json --backup
 ```
 
+## Input formats
+
+The analyzer can read two dump formats (auto-detected, or force with
+`--format`):
+
+- **sysfs dump** (`sysfs-txt`) — the `grep -R . /sys/class/firmware-attributes/`
+  text listed above.
+- **HP Setup report** (`hp-setup`) — an `HPSetup.txt`-style host report: option
+  name lines followed by tab-indented value lines. In an enumeration the
+  applied value is marked with `*`; scalar options list a single value; ordered
+  lists list all elements. Options are namespaced `hp-bioscfg/<name>` to share
+  policy keys with the sysfs model. UTF-16/CRLF files are handled automatically.
+
 ## Policy database (`policy.json`)
 
 A JSON object keyed by normalized option path (the Linux `/attributes/` class
