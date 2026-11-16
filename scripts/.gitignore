@@ -1,2 +1,7 @@
 # Sample UEFI configuration dumps — ignore them (test data, not source)
 bios/
+
+# Python artifacts
+__pycache__/
+*.py[cod]
+.pytest_cache/
