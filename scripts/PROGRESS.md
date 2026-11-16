@@ -57,14 +57,17 @@ support a manual review → merge workflow. See PLAN.md.
   non-indented line.
 - UTF-16 input support: `cli._read_source()` detects a UTF-16 BOM and decodes
   accordingly (the HpSetup.txt fixture is UTF-16/CRLF).
+- Cross-format name reconciliation: the sysfs parser canonicalizes HP's `!`
+  FAT32-safe escape back to `/` in option names, producing identical policy
+  keys between the sysfs dump and the HP Setup report.
 - Tests: `tests/test_hpsetup_parser.py` + `tests/data/hpsetup_sample.txt`.
 
 ## Known caveats / notes
-- Cross-format name differences: the HP Setup report uses `/` where the sysfs
-  dump uses the FAT32-safe `!` and `/` (e.g. sysfs `Save!Restore GPT` vs
-  HP Setup `Save/Restore GPT`, `Processor 1 Cache Size (L1!L2!L3)` vs
-  `(L1/L2/L3)`). Both are namespaced `hp-bioscfg/<name>` but their policy keys
-  may therefore differ between sources for these options.
+- Cross-format name reconciliation: HP exposes `/` in option names as `!` in
+  the sysfs dump (FAT32 forbids `/` in filenames). The sysfs parser now
+  canonicalizes `!` → `/`, so both sources produce identical policy keys
+  (e.g. `hp-bioscfg/Save/Restore GPT of System Hard Drive`). The HP Setup
+  report already uses `/`, so the two formats fully reconcile.
 
 ## Remaining / possible follow-ups
 - A separate review-only helper (plan mentions possible "separate script") —

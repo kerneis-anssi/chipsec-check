@@ -246,6 +246,10 @@ scripts/
 - **Value matching is exact/verbatim** (preserving `\n\t` etc.). Wildcards are
   only at the option level (whole option "don't care"). Per-value glob/regex is
   out of scope for v1 but the policy JSON schema can be extended later.
+- **Canonical names use `/`.** HP exposes `/` in option names as `!` in the
+  sysfs dump (because `/` is forbidden in filenames). The sysfs parser undoes
+  this (`!` → `/`) so both the sysfs dump and the HP Setup report reconcile to
+  the same identity key.
 - **Font / display name handling**: option may look empty in `attributes`
   (`pending_reboot`). Such metadata rows are recorded but not policy-checked.
 - **Multiple vendors**: the path prefix (`hp-bioscfg/…`) keeps policy entries

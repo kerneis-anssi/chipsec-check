@@ -48,6 +48,11 @@ The analyzer can read two dump formats (auto-detected, or force with
   lists list all elements. Options are namespaced `hp-bioscfg/<name>` to share
   policy keys with the sysfs model. UTF-16/CRLF files are handled automatically.
 
+Both formats reconcile to the same policy keys: HP names options with `/` (e.g.
+`Save/Restore GPT`), while the sysfs dump escapes `/` as `!` for FAT32
+compatibility (`Save!Restore GPT`); the sysfs parser canonicalizes that back to
+`/` so a single policy works across either source.
+
 ## Policy database (`policy.json`)
 
 A JSON object keyed by normalized option path (the Linux `/attributes/` class

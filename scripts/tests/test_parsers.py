@@ -43,6 +43,15 @@ class SysfsTxtParserTest(unittest.TestCase):
         self.assertTrue(spm.metadata["status"].startswith("{"))
         self.assertTrue(spm.metadata["status"].endswith("}"))
 
+    def test_fat32_escape_canonicalized(self):
+        # A sysfs name using HP's `!` escape for `/` should map to `/`.
+        src = ("hp-bioscfg/attributes/Save!Restore GPT of System Hard Drive/type:enumeration\n"
+               "hp-bioscfg/attributes/Save!Restore GPT of System Hard Drive/current_value:Disabled\n")
+        options = create("sysfs-txt").parse(src)
+        self.assertEqual(options[0].path, "hp-bioscfg/Save/Restore GPT of System Hard Drive")
+        self.assertEqual(options[0].name, "Save/Restore GPT of System Hard Drive")
+        self.assertEqual(options[0].raw_path, "hp-bioscfg/attributes/Save!Restore GPT of System Hard Drive")
+
 
 if __name__ == "__main__":
     unittest.main()

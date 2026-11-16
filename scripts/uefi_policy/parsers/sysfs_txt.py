@@ -16,6 +16,16 @@ from uefi_policy.parsers.base import BaseParser
 _ENUM_VALUE_KEYS = ("possible_values", "elements")
 _META_EXCLUDED_KEYS = ("type", "current_value") + _ENUM_VALUE_KEYS
 
+# HP exposes `/` in option names as `!` in the sysfs dump because `/` is
+# forbidden in filenames. The canonical name uses `/` so both the sysfs dump
+# and the HP Setup report reconcile to the same identity.
+_FAT32_ESCAPE = "!"
+
+
+def _canonical(text: str) -> str:
+    """Replace HP's FAT32-safe ``!`` escape back to ``/`` for canonical names."""
+    return text.replace(_FAT32_ESCAPE, "/")
+
 # Field names that appear in a dump line as ``<option>/<key>:<value>``. The key
 # is always one of these lowercase identifiers, so we split on the rightmost
 # ``/<key>:`` boundary. This is robust against option names and values that
@@ -115,7 +125,7 @@ class SysfsTxtParser(BaseParser):
                     possible_values = [v.strip() for v in meta[ek].split(";") if v.strip()]
                     break
 
-            name = meta.get("display_name") or path.rsplit("/", 1)[-1] or path
+            name = self._canonical_name(meta.get("display_name") or path.rsplit("/", 1)[-1] or path)
             metadata = {k: v for k, v in meta.items() if k not in _META_EXCLUDED_KEYS}
 
             options.append(
@@ -141,4 +151,8 @@ class SysfsTxtParser(BaseParser):
         parts = path.split("/")
         if len(parts) >= 2 and parts[1] in self.strip_segments:
             parts = parts[:1] + parts[2:]
-        return "/".join(parts)
+        return _canonical("/".join(parts))
+
+    def _canonical_name(self, path: str) -> str:
+        """The human-friendly option name with FAT32-safe escapes undone."""
+        return _canonical(path)
