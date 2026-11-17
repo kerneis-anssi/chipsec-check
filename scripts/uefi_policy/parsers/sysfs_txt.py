@@ -1,8 +1,12 @@
 """Parser for the ``grep -R . /sys/class/firmware-attributes/`` text dump.
 
-Each line has the form ``<prefix>/<option>/<key>:<value>``. Because option
-names and values may themselves contain colons, the line is split on the LAST
-``/`` to separate the option path from ``<key>:<value>``.
+Only real configuration options are kept: those living under the Linux
+``<vendor>/attributes/`` class. Non-option data that HP exposes under other
+classes (e.g. ``authentication/...``, ``power/...``) is discarded.
+
+Each line has the form ``<vendor>/attributes/<option>/<key>:<value>``. Because
+option names and values may themselves contain ``/`` or ``:``, the field key is
+a known identifier and the line is split on the rightmost ``/<key>:`` boundary.
 """
 
 from __future__ import annotations
@@ -21,42 +25,27 @@ _META_EXCLUDED_KEYS = ("type", "current_value") + _ENUM_VALUE_KEYS
 # and the HP Setup report reconcile to the same identity.
 _FAT32_ESCAPE = "!"
 
+# Field names that appear on options under ``attributes``. The key is always one
+# of these lowercase identifiers, so we split on the rightmost ``/<key>:``.
+# (Keys belonging only to the discarded authentication/power classes are absent.)
+_KNOWN_KEYS = (
+    "possible_values", "current_value", "display_name", "display_name_language_code",
+    "min_length", "max_length", "lower_bound", "upper_bound", "scalar_increment",
+    "elements", "audit_log_entry_count", "type",
+)
+
 
 def _canonical(text: str) -> str:
     """Replace HP's FAT32-safe ``!`` escape back to ``/`` for canonical names."""
     return text.replace(_FAT32_ESCAPE, "/")
-
-# Field names that appear in a dump line as ``<option>/<key>:<value>``. The key
-# is always one of these lowercase identifiers, so we split on the rightmost
-# ``/<key>:`` boundary. This is robust against option names and values that
-# themselves contain ``/`` or ``:``.
-_KNOWN_KEYS = (
-    "possible_values", "current_value", "display_name", "display_name_language_code",
-    "min_length", "max_length", "lower_bound", "upper_bound", "scalar_increment",
-    "elements", "audit_log_entry_count", "control", "encodings", "is_enabled",
-    "key_mechanism", "mechanism", "min_password_length", "max_password_length",
-    "pending_reboot", "role", "runtime_active_time", "runtime_status",
-    "runtime_suspended_time", "status", "type",
-)
-
-
-def _continues(value: str) -> bool:
-    """True if a raw value appears to continue on the next line.
-
-    Used to reassemble multi-line values (e.g. the ``status`` JSON blob, which
-    grep emits over several physical lines). A value is "incomplete" when it
-    has more opening than closing brace/bracket/paren characters.
-    """
-    opens = sum(value.count(c) for c in "[{(")
-    closes = sum(value.count(c) for c in "]})")
-    return opens > closes
 
 
 def _find_key_boundary(line: str) -> Tuple[str, str, int]:
     """Find the field key on a line: returns (key, value, path_start).
 
     The key is a known field name; the boundary is the rightmost ``/<key>:``
-    in the line. Returns (key, value, index_of_path_start)."""
+    in the line. Returns (None, '', 0) if no known key is present (the line is
+    not a recognized option attribute and should be skipped)."""
     best_key = None
     best_start = -1
     for key in _KNOWN_KEYS:
@@ -65,53 +54,57 @@ def _find_key_boundary(line: str) -> Tuple[str, str, int]:
             best_start = idx
             best_key = key
     if best_key is None:
-        raise ValueError(f"no known field key found in line: {line!r}")
+        return None, "", 0
     key_end = best_start + 1 + len(best_key) + 1  # just after ':'
     return best_key, line[key_end:], best_start
 
 
-def _split_key_value(line: str) -> Tuple[str, str, str]:
-    """Split a line into (path, key, value).
-
-    The key is a known field name; we split on the rightmost ``/<key>:`` so that
-    option names and values containing ``/`` or ``:`` are handled correctly.
-    """
+def _split_key_value(line: str) -> Tuple[str | None, str, str]:
+    """Split a line into (path, key, value). Any of these may be None/empty if
+    the line has no recognized field key."""
     key, value, start = _find_key_boundary(line)
+    if key is None:
+        return None, "", ""
     return line[:start], key, value
 
 
 class SysfsTxtParser(BaseParser):
-    def __init__(self, strip_segments: tuple = ("attributes",)):
-        self.strip_segments = tuple(strip_segments)
+    def __init__(self, kept_class: str = "attributes"):
+        self.kept_class = kept_class
 
     def parse(self, source: str) -> List[Option]:
-        lines = [l for l in source.splitlines() if l.strip()]
-        raw: List[Tuple[str, str, str]] = []
-        for line in lines:
-            path, key, value = _split_key_value(line)
-            if not key:
-                # Not a well-formed key:value line; skip defensively.
-                continue
-            # Reassemble multi-line values sharing the same path+key.
-            if (
-                raw
-                and raw[-1][0] == path
-                and raw[-1][1] == key
-                and _continues(raw[-1][2])
-            ):
-                merged_path, merged_key, merged_value = raw[-1]
-                raw[-1] = (merged_path, merged_key, merged_value + "\n" + value)
-            else:
-                raw.append((path, key, value))
-
-        # Group keys per option path, preserving first-seen order.
         grouped: Dict[str, Dict[str, str]] = {}
         order: List[str] = []
-        for path, key, value in raw:
+        last_path_key: Tuple[str, str] | None = None
+
+        def ensure(path: str):
             if path not in grouped:
                 grouped[path] = {}
                 order.append(path)
-            grouped[path][key] = value
+
+        for line in source.splitlines():
+            if not line.strip():
+                continue
+            # Cheap pre-filter: only consider options under the kept class.
+            # (Runs before key detection, which only knows the kept class's keys.)
+            if "/" + self.kept_class + "/" not in line:
+                continue
+            path, key, value = _split_key_value(line)
+            if not path or not key:
+                continue
+            # Keep only real options under vendor/<kept_class>/<option>.
+            segs = path.split("/")
+            if len(segs) < 3 or segs[1] != self.kept_class:
+                continue
+            ensure(path)
+            if last_path_key == (path, key):
+                # Same key again: continuation of a multi-line value. Join all
+                # consecutive lines for a given (path, key) regardless of format
+                # (works even if the value is not valid JSON).
+                grouped[path][key] += "\n" + value
+            else:
+                grouped[path][key] = value
+            last_path_key = (path, key)
 
         options: List[Option] = []
         for path in order:
@@ -142,14 +135,13 @@ class SysfsTxtParser(BaseParser):
         return options
 
     def _normalize(self, path: str) -> str:
-        """Strip the always-present Linux class segment from the identity key.
+        """Strip the kept class segment from the identity key.
 
         A raw path ``hp-bioscfg/attributes/Secure Boot`` maps to the policy key
-        ``hp-bioscfg/Secure Boot``. Other class segments (e.g. ``authentication``,
-        ``power``) are preserved.
+        ``hp-bioscfg/Secure Boot``.
         """
         parts = path.split("/")
-        if len(parts) >= 2 and parts[1] in self.strip_segments:
+        if len(parts) >= 2 and parts[1] == self.kept_class:
             parts = parts[:1] + parts[2:]
         return _canonical("/".join(parts))
 

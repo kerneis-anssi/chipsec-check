@@ -13,4 +13,5 @@ hp-bioscfg/attributes/TPM Device/current_value:Available
 hp-bioscfg/authentication/SPM/status:{
 hp-bioscfg/authentication/SPM/status:	"State": "not provisioned"
 hp-bioscfg/authentication/SPM/status:}
+hp-bioscfg/power/runtime_active_time:0
 hp-bioscfg/attributes/pending_reboot:0

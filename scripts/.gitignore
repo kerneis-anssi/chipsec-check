@@ -5,3 +5,4 @@ bios/
 __pycache__/
 *.py[cod]
 .pytest_cache/
+*.swp

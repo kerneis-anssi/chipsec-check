@@ -30,18 +30,35 @@ class SysfsTxtParserTest(unittest.TestCase):
         self.assertEqual(boot.possible_values, ["Disable", "Enable"])
         self.assertEqual(boot.current_value, "Enable")
 
-    def test_non_attributes_class_preserved(self):
+    def test_non_attributes_classes_discarded(self):
         options = parse_sample()
-        # authentication/SPM is metadata only (no type):
-        spm = next(o for o in options if "SPM" in o.path)
-        self.assertIn("authentication", spm.path)
-        self.assertIn("status", spm.metadata)
+        paths = {o.path for o in options}
+        # No authentication/... or power/... options are parsed at all.
+        self.assertNotIn("hp-bioscfg/authentication/SPM", paths)
+        self.assertNotIn("hp-bioscfg/power", paths)
+        # Their keys did not leak into any option.
+        for o in options:
+            self.assertNotIn("role", o.metadata)
+            self.assertNotIn("runtime_active_time", o.metadata)
+
+    def test_class_level_scalar_discarded(self):
+        # pending_reboot is a scalar directly under attributes (no option name),
+        # not a real option; it should not appear.
+        options = parse_sample()
+        paths = {o.path for o in options}
+        self.assertNotIn("hp-bioscfg/pending_reboot", paths)
 
     def test_multiline_value_reassembled(self):
-        options = parse_sample()
-        spm = next(o for o in options if "SPM" in o.path)
-        self.assertTrue(spm.metadata["status"].startswith("{"))
-        self.assertTrue(spm.metadata["status"].endswith("}"))
+        # A multi-line value under attributes is reassembled simply by joining
+        # consecutive lines for the same key (no brace-balance needed).
+        src = (
+            "hp-bioscfg/attributes/Custom Cfg/current_value:line one\n"
+            "hp-bioscfg/attributes/Custom Cfg/current_value:line two\n"
+            "hp-bioscfg/attributes/Custom Cfg/current_value:line three\n"
+        )
+        options = create("sysfs-txt").parse(src)
+        cfg = next(o for o in options if o.path == "hp-bioscfg/Custom Cfg")
+        self.assertEqual(cfg.current_value, "line one\nline two\nline three")
 
     def test_fat32_escape_canonicalized(self):
         # A sysfs name using HP's `!` escape for `/` should map to `/`.

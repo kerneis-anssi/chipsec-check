@@ -33,14 +33,17 @@ hp-bioscfg/attributes/Secure Boot/current_value:Enable
   colons (`current_value:HDD:M.2:1;...`, `OS Recovery Agent Public Key/current_value:v02...==`).
   ⇒ Split each line into `(path, key, value)` on the *first* colon only.
 - Option *names* may contain literal `\n\t` escape sequences (e.g. `HP_Disk0MapForUefiBootOrder/current_value` contains `PciRoot...\n\tPci(0x14...)`). These are single physical lines, so no multi-line reassembly is required — but the `\t` and `\n` must be preserved verbatim if a value must be matched.
-- Prefixes seen in the sample: `attributes`, `authentication`, `power`. There is also a module-level top entry (`hp-bioscfg/attributes/pending_reboot:0`) that has an empty option name.
+- Only real options are kept: those under the `<vendor>/attributes/` class.
+  Non-option data under other classes (e.g. HP's `authentication`, `power`, and
+  module-level scalars such as `pending_reboot`) is discarded by the parser.
 - Some options are metadata-only and lack a `current_value` (e.g. have `max_length`, `min_length`, `lower_bound`, `upper_bound` but no `current_value`). These are fine to carry but are not policy-checked.
 - **Key normalization (Linux quirk):** the middle `/attributes/` class segment is an
   always-present Linux sysfs detail with no policy meaning. The parser strips it
   from the identity key, so a dump line `hp-bioscfg/attributes/Secure Boot` maps
-  to option identity **`hp-bioscfg/Secure Boot`**. Other, vendor-specific class
-  segments (e.g. `authentication`, `power`) are preserved. The set of segments to
-  strip is parser/config driven (default: `{"attributes"}`) so it can be adapted.
+  to option identity **`hp-bioscfg/Secure Boot`**.
+- **Multi-line values** are reassembled by joining *all consecutive* lines for a
+  given `(path, key)` with `\n` — no brace/paren balancing is assumed, so values
+  that are not valid JSON/balanced are handled too.
 - The **option identity** used for policy lookup = the normalized
   `vendor/option` path (after stripping the Linux class quirk, and excluding the
   key), because plain option names could collide across vendors. A human-friendly
@@ -77,7 +80,10 @@ records**. All policy logic operates only on this model.
 ### Parser design (pluggable)
 
 - Base abstract parser interface: `parse(source) -> list[Option]`.
-- `SysfsTxtParser` (the `grep -R .` dump), format name `sysfs-txt`.
+- `SysfsTxtParser` (the `grep -R .` dump), format name `sysfs-txt`. Keeps only
+  options under the `<vendor>/attributes/` class; discards other classes and
+  module-level scalars. Multi-line values are joined by consecutive same-key
+  lines (no brace-balance assumption).
 - `HPSetupTxtParser` (HP `HPSetup.txt`-style reports), format name `hp-setup`,
   read by the same CLI with `--format` or auto-detected from the text.
 - A registry / factory that selects a parser by input kind; `--format auto`
