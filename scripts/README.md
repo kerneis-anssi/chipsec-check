@@ -37,21 +37,26 @@ python3 analyze_uefi_cfg.py merge --review review.json --policy policy.json --ba
 
 ## Input formats
 
-The analyzer can read two dump formats (auto-detected, or force with
+The analyzer can read three dump formats (auto-detected, or force with
 `--format`):
 
+- **fwupd JSON** (`fwupd-json`) — structured output from fwupd's
+  `get-bios-settings` (`fwupdmgr get-bios-settings`). A `{"BiosSettings": [...]}`
+  list; options with a `BiosSettingPossibleValues` are `enumeration`, the rest
+  `string`. Recommended: same content as the grep dump but structured.
 - **sysfs dump** (`sysfs-txt`) — the `grep -R . /sys/class/firmware-attributes/`
-  text listed above.
+  text. Deprecated (see below).
 - **HP Setup report** (`hp-setup`) — an `HPSetup.txt`-style host report: option
   name lines followed by tab-indented value lines. In an enumeration the
   applied value is marked with `*`; scalar options list a single value; ordered
   lists list all elements. Options are namespaced `hp-bioscfg/<name>` to share
-  policy keys with the sysfs model. UTF-16/CRLF files are handled automatically.
+  policy keys with the fwupd model. UTF-16/CRLF files are handled automatically.
 
-Both formats reconcile to the same policy keys: HP names options with `/` (e.g.
-`Save/Restore GPT`), while the sysfs dump escapes `/` as `!` for FAT32
-compatibility (`Save!Restore GPT`); the sysfs parser canonicalizes that back to
-`/` so a single policy works across either source.
+All formats reconcile to the same policy keys: HP names options with `/` (e.g.
+`Save/Restore GPT`), while the sysfs/fwupd name escapes `/` as `!` for FAT32
+compatibility (`Save!Restore GPT`); the parsers canonicalize that back to `/`
+so a single policy works across sources. The grep-based `sysfs-txt` parser is
+legacy and superseded by `fwupd-json`.
 
 ## Policy database (`policy.json`)
 

@@ -81,14 +81,19 @@ records**. All policy logic operates only on this model.
 ### Parser design (pluggable)
 
 - Base abstract parser interface: `parse(source) -> list[Option]`.
-- `SysfsTxtParser` (the `grep -R .` dump), format name `sysfs-txt`. Keeps only
-  options under the `<vendor>/attributes/` class; discards other classes and
-  module-level scalars. Attribute values are single-line; a repeated key raises
-  an error.
+- `FwupdJsonParser` (fwupd `get-bios-settings` output), format name
+  `fwupd-json`. Structured JSON, the recommended source. Two types only:
+  enumeration (has `possible_values`) and string. Canonical key derived from
+  each entry's `Filename` sysfs path (strip prefix and `/attributes/`, undo
+  `!` → `/`).
 - `HPSetupTxtParser` (HP `HPSetup.txt`-style reports), format name `hp-setup`,
   read by the same CLI with `--format` or auto-detected from the text.
+- `SysfsTxtParser` (the `grep -R .` dump), format name `sysfs-txt`.
+  **Deprecated** — superseded by the structured `fwupd-json` format (removed in
+  a follow-up commit).
 - A registry / factory that selects a parser by input kind; `--format auto`
-  (default) sniffs sysfs vs HP-Setup structure from the text.
+  (default) sniffs the text/file structure.
+  - JSON starting with `{` (fwupd), then sysfs `/`+`:` paths, else HP Setup.
 - Capabilities of the HP Setup parser:
   - `*`-prefixed value ⇒ enumeration (`possible_values` + `current_value`).
   - single unmarked value ⇒ scalar `string`/`integer` current.

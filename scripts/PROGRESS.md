@@ -92,6 +92,20 @@ support a manual review → merge workflow. See PLAN.md.
 - Result on the real dump: `IGNORED` dropped from 25 → 1 (only `Sure_Start`, a
   type-less row). The 23 unset strings now report instead of being ignored.
 
+### Step 8 — fwupd JSON parser (structured replacement for the grep dump)
+- Added `uefi_policy/parsers/fwupd_json.py` (`FwupdJsonParser`, format
+  `fwupd-json`) for fwupd `get-bios-settings` output — the same content as the
+  sysfs dump but structured as `{"BiosSettings": [...]}`.
+  - Only two types: an option with a `BiosSettingPossibleValues` list is
+    `enumeration`; everything else is `string`.
+  - Derives the canonical policy key from each entry's `Filename` sysfs path
+    (strip the prefix and `/attributes/`, undo `!` → `/`).
+  - `BiosSettingCurrentValue` → `current_value`; other fields (description,
+    read-only, bounds, ids) kept in `metadata`.
+- Auto-detection: a JSON object starting with `{` selects the fwupd parser.
+- Tests: `tests/test_fwupd_parser.py` + `tests/data/fwupd_sample.json`.
+- End-to-end: 262 options, all checkable (162 enumeration + 100 string).
+
 ## Known caveats / notes
 - Cross-format name reconciliation: HP exposes `/` in option names as `!` in
   the sysfs dump (FAT32 forbids `/` in filenames). The sysfs parser now
