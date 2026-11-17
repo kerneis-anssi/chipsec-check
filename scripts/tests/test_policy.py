@@ -53,13 +53,24 @@ class PolicyTest(unittest.TestCase):
             with self.assertRaises(PolicyError):
                 load_policy(path)
 
-    def test_accept_and_reject_conflict_rejected(self):
+    def test_accept_and_reject_both_loaded(self):
         with tempfile.TemporaryDirectory() as d:
             path = os.path.join(d, "policy.json")
             with open(path, "w") as fh:
                 json.dump({"version": 1, "policy": {"hp-x/Foo": {"accept": ["a"], "reject": ["b"]}}}, fh)
-            with self.assertRaises(PolicyError):
+            loaded = load_policy(path)
+            e = loaded.get("hp-x/Foo")
+            self.assertEqual(e.accept, ["a"])
+            self.assertEqual(e.reject, ["b"])
+
+    def test_accept_reject_overlap_rejected(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "policy.json")
+            with open(path, "w") as fh:
+                json.dump({"version": 1, "policy": {"hp-x/Foo": {"accept": ["a"], "reject": ["a"]}}}, fh)
+            with self.assertRaises(PolicyError) as ctx:
                 load_policy(path)
+            self.assertIn("both accept and reject", str(ctx.exception))
 
 
 class ReviewMergeTest(unittest.TestCase):
@@ -119,6 +130,20 @@ class ReviewMergeTest(unittest.TestCase):
         with self.assertRaises(PolicyError):
             merge_review(
                 p, [ReviewOption(path="hp-x/Foo", accept=["a"], reject=["a"])])
+
+    def test_double_merge_roundtrip_is_idempotent(self):
+        # Regression: a policy with accept+reject must reload and re-merge
+        # without an exclusivity error (second merge of the same review).
+        opt = ReviewOption(path="hp-x/Foo", accept=["a"], reject=["b"])
+        with tempfile.TemporaryDirectory() as d:
+            policies = [os.path.join(d, "policy.json") for _ in range(2)]
+            for pol in policies:
+                p = Policy()
+                merge_review(p, [opt])
+                save_policy(p, pol)
+                p2 = load_policy(pol)  # must not raise
+                self.assertEqual(p2.get("hp-x/Foo").accept, ["a"])
+                self.assertEqual(p2.get("hp-x/Foo").reject, ["b"])
 
     def test_review_io_roundtrip(self):
         opt = ReviewOption(path="hp-x/Foo", accept=["Enable"], current="Disable",

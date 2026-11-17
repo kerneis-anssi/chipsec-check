@@ -61,9 +61,11 @@ def _validate_policy_entry(path: str, d: dict) -> PolicyEntry:
         raise PolicyError(f"policy entry for '{path}': accept/reject must be lists")
     if not all(isinstance(v, str) for v in accept) or not all(isinstance(v, str) for v in reject):
         raise PolicyError(f"policy entry for '{path}': accept/reject must contain only strings")
-    if accept and reject:
+    overlap = set(accept) & set(reject)
+    if overlap:
         raise PolicyError(
-            f"policy entry for '{path}': accept and reject are mutually exclusive"
+            f"policy entry for '{path}': value(s) {sorted(overlap)} appear in both "
+            "accept and reject"
         )
     return PolicyEntry(accept=accept, reject=reject, wildcard=bool(wildcard))
 
