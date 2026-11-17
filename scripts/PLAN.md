@@ -120,9 +120,9 @@ Text/JSON file, human-editable, keyed by option path.
 - `reject`: values not allowed.
 - `wildcard: true`: any value is accepted; option is "don't care".
 - Values not present in either list are **unknown** (see section 4).
-- Convention: `accept` and `reject` are mutually exclusive for the same option;
-  if both are present, `reject` wins (fail-closed), or the loader may reject the
-  DB as malformed. Decision: **loader warns and treats such a row as invalid**, fail-closed.
+- An option may list `accept` *and* `reject` values together (map each
+  enumerated value to one of the two); a value must not appear in both lists
+  (overlap ⇒ the loader rejects the DB / row as malformed, fail-closed).
 
 ## 4. Evaluation and reporting
 
@@ -189,12 +189,13 @@ so a reviewer edits it just like the policy file:
 
 `merge --review review.json --policy policy.json`:
 
-- Applies each option's final `accept`/`reject` list (or `wildcard`) to the
+- Applies each option's final `accept`/`reject` lists (or `wildcard`) to the
   policy. The reviewed lists **replace** any prior policy entry — they do not
   append to it (the review file is authoritative).
-- `accept` → set the option's `accept` list (dedup); `reject` → same for reject.
-  Lists are created empty if absent, which lets a reviewer explicitly clear a
-  prior accepted value.
+- `accept` → set the option's `accept` list (dedup); `reject` → set its `reject`
+  list (dedup). Both lists can be set for the same option. A value in both
+  lists is rejected as malformed. Lists are created empty if absent, which lets
+  a reviewer explicitly clear a prior accepted value.
 - `wildcard` → set the option to `wildcard: true`; any existing `accept`/`reject`
   lists for it are dropped (a wildcard supercedes per-value rules).
 - An option left **fully undecided** (empty `accept`/`reject`, no `wildcard`) is
@@ -211,8 +212,12 @@ so a reviewer edits it just like the policy file:
 ### Convention: review → accept/reject completeness
 
 An option's set of `possible_values` may change between BIOS versions. The
-analysis only flags values present in the *current* dump. This is documented as
-a known limitation — the DB reflects what has been encountered and reviewed.
+analysis flags values drawn from the current dump's enumerable `possible_values`
+set — including ones that are **not currently selected** as the current value —
+so every newly-possible value must be explicitly mapped to `accept`/`reject`
+(or the option wildcarded) to stop being flagged. The DB thus reflects what has
+been encountered and reviewed; a value absent from the current dump's enum is
+simply not evaluated.
 
 ## 6. CLI design (single script, subcommands)
 

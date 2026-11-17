@@ -151,6 +151,19 @@ support a manual review → merge workflow. See PLAN.md.
   missing `review` object); `test_analyze.py` assertions updated for the
   per-option `unknown` lists. 42 tests pass.
 
+### Step 12 — allow accept+reject together in one option
+- Decided to flag `UNKNOWN_VALUE` for the full enumerable `possible_values` set
+  (not just the current value), so every newly-possible enum value must be
+  explicitly mapped. This means a fully-decided enumeration legitimately needs
+  **both** `accept` and `reject` filled.
+- `merge_review` no longer treats `accept`/`reject` as mutually exclusive: it
+  stores both lists for an option. A value appearing in both lists is still
+  rejected as malformed (overlap).
+- Review files already emit both lists (see Step 11 formatting); reviewers now
+  move each unknown value into `accept` or `reject` to converge an option.
+- Tests: replaced the exclusivity test with `accept`+`reject` merge and an
+  overlap-raises test; 43 tests pass.
+
 ## Known caveats / notes
 - Cross-format name reconciliation: HP exposes `/` in option names as `!`,
   because `/` is forbidden in filenames (FAT32). Both the fwupd JSON `Name`/

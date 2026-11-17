@@ -79,8 +79,10 @@ segment is stripped, so `hp-bioscfg/attributes/Secure Boot` is keyed
 ```
 
 Rules:
-- `accept` and `reject` are mutually exclusive for a single option.
-- Values not in either list are **unknown** → flagged for review.
+- An option may list accepted (`accept`) *and/or* rejected (`reject`) values;
+  for an enumeration you typically map every value to one of the two.
+- A value must not appear in both `accept` and `reject`.
+- Values in the dump not in either list are **unknown** → flagged for review.
 - An option absent from the policy entirely is **unknown** → flagged for review.
 
 ## Evaluation statuses
@@ -125,9 +127,13 @@ for "don't care") — exactly as they would in the policy file.
 }
 ```
 
-Only options still needing a decision appear. `merge` applies each option's
-final `accept`/`reject` list (or `wildcard`) to the policy — the reviewed
-lists **replace** any prior policy entry, they don't merge. An option the
+Only options still needing a decision appear. `unknown` lists every enumerated
+value (or the current value, for a scalar) not yet covered by `accept`/`reject`
+— not just the currently-selected value — so a value is only "retired" once you
+explicitly move it into `accept` or `reject` (or wildcard the option). `merge`
+applies each option's final `accept`/`reject` lists (or `wildcard`) to the
+policy — the reviewed lists **replace** any prior policy entry, they don't
+merge. An option the
 reviewer leaves fully undecided (empty `accept`/`reject` and no `wildcard`) is
 **skipped silently** (no policy entry is created/changed), and `merge` reports
 how many were skipped. With `--wildcard-all`, every undecided option is instead

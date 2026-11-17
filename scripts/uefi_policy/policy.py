@@ -228,6 +228,10 @@ def merge_review(policy: Policy, options: List[ReviewOption], wildcard_all: bool
 
     Returns (applied, skipped): how many options were applied versus skipped
     (left fully undecided — empty accept/reject and no wildcard).
+
+    An option may carry both ``accept`` and ``reject`` values (map each
+    enumerated value to accept or reject); the reviewed lists replace any prior
+    policy entry for the option.
     """
     applied = 0
     skipped = 0
@@ -237,26 +241,20 @@ def merge_review(policy: Policy, options: List[ReviewOption], wildcard_all: bool
             skipped += 1
             continue
         entry_obj = policy.entries.setdefault(option.path, PolicyEntry())
-        if wildcard_all and not decided:
+        if (wildcard_all and not decided) or option.wildcard:
             entry_obj.accept = []
             entry_obj.reject = []
             entry_obj.wildcard = True
-        elif option.wildcard:
-            entry_obj.accept = []
-            entry_obj.reject = []
-            entry_obj.wildcard = True
-        elif option.accept:
-            if option.reject:
-                raise PolicyError(
-                    f"review entry for '{option.path}': accept and reject are "
-                    "mutually exclusive"
-                )
-            entry_obj.accept = _dedup(option.accept)
-            entry_obj.reject = []
-            entry_obj.wildcard = False
-        elif option.reject:
-            entry_obj.reject = _dedup(option.reject)
-            entry_obj.accept = []
-            entry_obj.wildcard = False
+            applied += 1
+            continue
+        overlap = set(option.accept) & set(option.reject)
+        if overlap:
+            raise PolicyError(
+                f"review entry for '{option.path}': value(s) {sorted(overlap)} "
+                "appear in both accept and reject"
+            )
+        entry_obj.accept = _dedup(option.accept)
+        entry_obj.reject = _dedup(option.reject)
+        entry_obj.wildcard = False
         applied += 1
     return applied, skipped

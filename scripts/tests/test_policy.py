@@ -105,10 +105,20 @@ class ReviewMergeTest(unittest.TestCase):
         merge_review(p, [ReviewOption(path="hp-x/Foo", reject=["Disable"])])
         self.assertEqual(p.get("hp-x/Foo").reject, ["Disable"])
 
-    def test_accept_reject_conflict_raises(self):
+    def test_merge_accept_and_reject(self):
+        p = Policy()
+        merge_review(
+            p, [ReviewOption(path="hp-x/Foo", accept=["a"], reject=["b"])])
+        e = p.get("hp-x/Foo")
+        self.assertEqual(e.accept, ["a"])
+        self.assertEqual(e.reject, ["b"])
+        self.assertFalse(e.wildcard)
+
+    def test_merge_accept_reject_overlap_raises(self):
         p = Policy()
         with self.assertRaises(PolicyError):
-            merge_review(p, [ReviewOption(path="hp-x/Foo", accept=["a"], reject=["b"])])
+            merge_review(
+                p, [ReviewOption(path="hp-x/Foo", accept=["a"], reject=["a"])])
 
     def test_review_io_roundtrip(self):
         opt = ReviewOption(path="hp-x/Foo", accept=["Enable"], current="Disable",
