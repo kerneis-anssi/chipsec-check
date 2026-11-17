@@ -9,11 +9,9 @@ from __future__ import annotations
 from uefi_policy.parsers.base import BaseParser, available, create, register
 from uefi_policy.parsers.fwupd_json import FwupdJsonParser
 from uefi_policy.parsers.hpsetup_txt import HPSetupTxtParser
-from uefi_policy.parsers.sysfs_txt import SysfsTxtParser
 
-register("sysfs-txt", SysfsTxtParser)
-register("hp-setup", HPSetupTxtParser)
 register("fwupd-json", FwupdJsonParser)
+register("hp-setup", HPSetupTxtParser)
 
 
 def detect(content: str) -> BaseParser:
@@ -22,20 +20,8 @@ def detect(content: str) -> BaseParser:
     # fwupd get-bios-settings output is a JSON object with a 'BiosSettings' list.
     if stripped.startswith("{"):
         return create("fwupd-json")
-    # Sysfs dumps have lines like ``hp-bioscfg/attributes/Secure Boot/key:value``
-    # (a ``/``-prefixed path and a ``:`` separator). The HP Setup report has
-    # bare option names with tab-indented values and ``*`` markers. A sysfs
-    # dump's first non-empty line is a leading-slash-free but slash-containing
-    # path ending with ``:``.
-    for line in content.splitlines():
-        line = line.lstrip("\ufeff").strip()
-        if not line or line.startswith("\t"):
-            continue
-        # sysfs: has a slash-path and a colon before any second-line value.
-        if "/" in line and ":" in line:
-            return create("sysfs-txt")
-        # HP Setup: e.g. "Secure Boot" / "Product Name".
-        return create("hp-setup")
+    # Otherwise it is an HP Setup report (bare option names with tab-indented,
+    # possibly `*`-marked value lines).
     return create("hp-setup")
 
 

@@ -4,60 +4,52 @@ A Python tool that parses UEFI configuration dumps, evaluates them against a
 policy database, reports violations, and supports a review/merge workflow for
 options and values not yet covered by the policy.
 
-## 1. Input data format (sysfs dump)
+## 1. Input data format (fwupd JSON)
 
-A text file produced by:
-
-```
-grep -R . /sys/class/firmware-attributes/ | cut -d/ -f5- > firmware-attributes.txt
-```
-
-Each line has the form:
+The primary input is structured JSON produced by fwupd's
+`fwupdmgr get-bios-settings`. It contains the same options as the legacy
+grep dump but in a clean, structured form:
 
 ```
-<vendor>/<class>/<option>/<key>:<value>
+{
+  "BiosSettings": [
+    {
+      "Name": "Secure Boot",
+      "Filename": "/sys/class/firmware-attributes/hp-bioscfg/attributes/Secure Boot",
+      "BiosSettingCurrentValue": "Enable",
+      "BiosSettingType": 1,
+      "BiosSettingPossibleValues": ["Disable", "Enable"],
+      ...
+    },
+    ...
+  ]
+}
 ```
 
-Concrete example from the sample (`bios/firmware-attributes.txt`):
+### Parsing rules / gotchas
 
-```
-hp-bioscfg/attributes/Secure Boot/type:enumeration
-hp-bioscfg/attributes/Secure Boot/possible_values:Disable;Enable
-hp-bioscfg/attributes/Secure Boot/current_value:Enable
-```
-
-### Parsing rules / gotchas observed in the sample
-
-- The **key** is the segment after the last `/` up to the first `:`.
-- The **value** is everything after that first `:`, and may itself contain
-  colons (`current_value:HDD:M.2:1;...`, `OS Recovery Agent Public Key/current_value:v02...==`).
-  ⇒ Split each line into `(path, key, value)` on the *first* colon only.
-- Option *names* may contain literal `\n\t` escape sequences (e.g. `HP_Disk0MapForUefiBootOrder/current_value` contains `PciRoot...\n\tPci(0x14...)`). These are single physical lines, so no multi-line reassembly is required — but the `\t` and `\n` must be preserved verbatim if a value must be matched.
-- Only real options are kept: those under the `<vendor>/attributes/` class.
-  Non-option data under other classes (e.g. HP's `authentication`, `power`, and
-  module-level scalars such as `pending_reboot`) is discarded by the parser.
-- Some options are metadata-only and lack a `current_value` (e.g. have `max_length`, `min_length`, `lower_bound`, `upper_bound` but no `current_value`). These are fine to carry but are not policy-checked.
-- **Key normalization (Linux quirk):** the middle `/attributes/` class segment is an
-  always-present Linux sysfs detail with no policy meaning. The parser strips it
-  from the identity key, so a dump line `hp-bioscfg/attributes/Secure Boot` maps
-  to option identity **`hp-bioscfg/Secure Boot`**.
-- **Multi-line values**: real options under `/attributes/` have single-line
-  values, so no multi-line assembly is performed. A repeated ``(path, key)``
-  (which would indicate an unexpected multi-line value or malformed dump) raises
-  an error rather than being silently joined or overwritten.
+- **Option identity**: each entry's `Filename` mirrors the sysfs path
+  (`.../firmware-attributes/<vendor>/<class>/<option>`). We derive the policy
+  key by stripping the sysfs prefix and the always-present `/attributes/`
+  class segment, then undoing HP's FAT32-safe `!` → `/` escape
+  (e.g. → `hp-bioscfg/Secure Boot`, `hp-bioscfg/Save/Restore GPT of ...`).
+- **Type**: only two types exist — an option with a `BiosSettingPossibleValues`
+  list is an `enumeration`; anything else is a `string`. There is no
+  integer/ordered-list distinction in this format.
+- `BiosSettingCurrentValue` → `current_value`; `BiosSettingPossibleValues` →
+  `possible_values`. Remaining fields (`Description`, `BiosSettingReadOnly`,
+  `BiosSettingId`, bounds, …) are kept verbatim in `metadata`.
 - The **option identity** used for policy lookup = the normalized
-  `vendor/option` path (after stripping the Linux class quirk, and excluding the
-  key), because plain option names could collide across vendors. A human-friendly
-  `display_name` is retained for reporting.
+  `vendor/option` path (after stripping the `/attributes/` class quirk),
+  because plain option names could collide across vendors. A human-friendly
+  `Name` is retained for reporting.
 
-### Data types seen
+### Data types
 
-| `type`  | value sources | notes |
-|---------|---------------|-------|
-| `enumeration` | `possible_values` (`;`-separated) + `current_value` | main checkable type |
-| `ordered-list` | `elements` + `current_value` | treat like an enumeration for policy matching |
-| `integer` | `lower_bound`/`upper_bound`/`scalar_increment` + `current_value` | optional range check |
-| `string` | `min_length`/`max_length` + `current_value` | usually not policy-checked; often informational |
+| type | value sources | notes |
+|------|---------------|-------|
+| `enumeration` | `BiosSettingPossibleValues` + `BiosSettingCurrentValue` | main checkable type |
+| `string` | `BiosSettingCurrentValue` | permitted as a string; no possible-values list |
 
 ## 2. Modular parser → internal data model
 
@@ -88,12 +80,9 @@ records**. All policy logic operates only on this model.
   `!` → `/`).
 - `HPSetupTxtParser` (HP `HPSetup.txt`-style reports), format name `hp-setup`,
   read by the same CLI with `--format` or auto-detected from the text.
-- `SysfsTxtParser` (the `grep -R .` dump), format name `sysfs-txt`.
-  **Deprecated** — superseded by the structured `fwupd-json` format (removed in
-  a follow-up commit).
 - A registry / factory that selects a parser by input kind; `--format auto`
   (default) sniffs the text/file structure.
-  - JSON starting with `{` (fwupd), then sysfs `/`+`:` paths, else HP Setup.
+  - JSON starting with `{` (fwupd), else HP Setup.
 - Capabilities of the HP Setup parser:
   - `*`-prefixed value ⇒ enumeration (`possible_values` + `current_value`).
   - single unmarked value ⇒ scalar `string`/`integer` current.
@@ -222,7 +211,7 @@ analyze_uefi_cfg.py merge    --review REVIEW [--policy POL] [--backup]
 
 `dump` is the default action:
 - `--input` source dump path (mandatory).
-- `--format`/auto-detect parser (`auto` is default; `sysfs-txt`, `hp-setup`).
+- `--format`/auto-detect parser (`auto` is default; `fwupd-json`, `hp-setup`).
 - `--policy` path to policy JSON (required).
 - `--report` path for the text report copy (in addition to stdout).
 - `--review` path for the review file (auto-named if omitted: `<dump>.review.json`).
@@ -243,7 +232,8 @@ scripts/
     model.py          # Option dataclass, Policy, status enums
     parsers/
       __init__.py     # registry/factory
-      sysfs_txt.py    # SysfsTxtParser
+      fwupd_json.py   # FwupdJsonParser
+      hpsetup_txt.py  # HPSetupTxtParser
     policy.py         # load/save/validate policy DB, review DB
     analyze.py        # evaluation logic
     reports.py        # stdout + file report formatting

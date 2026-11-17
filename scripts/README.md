@@ -23,10 +23,10 @@ merge  --review REVIEW --policy POLICY [--wildcard-all] [--backup]
 
 ```
 # Dump the configuration (run on the target system)
-grep -R . /sys/class/firmware-attributes/ | cut -d/ -f5- > firmware-attributes.txt
+fwupdmgr get-bios-settings > bios-settings.json
 
 # Analyze against an existing policy
-python3 analyze_uefi_cfg.py dump firmware-attributes.txt \
+python3 analyze_uefi_cfg.py dump bios-settings.json \
     --policy policy.json --report report.txt --review review.json
 
 # Edit review.json: set decision: "accept" | "reject" | "wildcard"
@@ -37,26 +37,23 @@ python3 analyze_uefi_cfg.py merge --review review.json --policy policy.json --ba
 
 ## Input formats
 
-The analyzer can read three dump formats (auto-detected, or force with
+The analyzer can read two dump formats (auto-detected, or force with
 `--format`):
 
 - **fwupd JSON** (`fwupd-json`) — structured output from fwupd's
   `get-bios-settings` (`fwupdmgr get-bios-settings`). A `{"BiosSettings": [...]}`
   list; options with a `BiosSettingPossibleValues` are `enumeration`, the rest
-  `string`. Recommended: same content as the grep dump but structured.
-- **sysfs dump** (`sysfs-txt`) — the `grep -R . /sys/class/firmware-attributes/`
-  text. Deprecated (see below).
+  `string`. Recommended source.
 - **HP Setup report** (`hp-setup`) — an `HPSetup.txt`-style host report: option
   name lines followed by tab-indented value lines. In an enumeration the
   applied value is marked with `*`; scalar options list a single value; ordered
   lists list all elements. Options are namespaced `hp-bioscfg/<name>` to share
   policy keys with the fwupd model. UTF-16/CRLF files are handled automatically.
 
-All formats reconcile to the same policy keys: HP names options with `/` (e.g.
-`Save/Restore GPT`), while the sysfs/fwupd name escapes `/` as `!` for FAT32
+Both formats reconcile to the same policy keys: HP names options with `/` (e.g.
+`Save/Restore GPT`), while the fwupd name escapes `/` as `!` for FAT32
 compatibility (`Save!Restore GPT`); the parsers canonicalize that back to `/`
-so a single policy works across sources. The grep-based `sysfs-txt` parser is
-legacy and superseded by `fwupd-json`.
+so a single policy works across sources.
 
 ## Policy database (`policy.json`)
 

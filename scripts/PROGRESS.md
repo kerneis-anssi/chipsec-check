@@ -106,10 +106,20 @@ support a manual review → merge workflow. See PLAN.md.
 - Tests: `tests/test_fwupd_parser.py` + `tests/data/fwupd_sample.json`.
 - End-to-end: 262 options, all checkable (162 enumeration + 100 string).
 
+### Step 9 — discard the grep-based sysfs-txt format
+- Removed `uefi_policy/parsers/sysfs_txt.py`, its tests
+  (`tests/test_parsers.py`) and fixture (`tests/data/sample.txt`); dropped the
+  `sysfs-txt` registration and the grep line-splitting logic.
+- Auto-detection now simple: JSON starting with `{` → `fwupd-json`, otherwise
+  `hp-setup`.
+- Docs (README/PLAN) rewritten to treat fwupd JSON as the primary input. The
+  `fwupd-json` and `hp-setup` formats remain.
+
 ## Known caveats / notes
-- Cross-format name reconciliation: HP exposes `/` in option names as `!` in
-  the sysfs dump (FAT32 forbids `/` in filenames). The sysfs parser now
-  canonicalizes `!` → `/`, so both sources produce identical policy keys
+- Cross-format name reconciliation: HP exposes `/` in option names as `!`,
+  because `/` is forbidden in filenames (FAT32). Both the fwupd JSON `Name`/
+  `Filename` and the HP Setup report carry the same option, and the parsers
+  canonicalize `!` → `/`, so both sources produce identical policy keys
   (e.g. `hp-bioscfg/Save/Restore GPT of System Hard Drive`). The HP Setup
   report already uses `/`, so the two formats fully reconcile.
 
