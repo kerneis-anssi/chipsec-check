@@ -73,6 +73,14 @@ support a manual review → merge workflow. See PLAN.md.
 - Tests updated: non-`attributes` classes are asserted discarded, the
   class-level scalar is discarded, and a duplicate key raises.
 
+### Step 6 — harden JSON loading (empty/malformed files)
+- `load_policy`/`load_review` now route parsing through `_load_json()`, which
+  turns empty files, invalid JSON, decode and I/O errors into a clear
+  `PolicyError` instead of an uncaught traceback.
+- CLI: `cmd_dump` catches `PolicyError`/`ValueError`; `main` catches a stray
+  `PolicyError` and `BrokenPipeError`, printing a clean error + non-zero exit.
+- Tests: empty/malformed/non-object policy files, plus existing coverage.
+
 ## Known caveats / notes
 - Cross-format name reconciliation: HP exposes `/` in option names as `!` in
   the sysfs dump (FAT32 forbids `/` in filenames). The sysfs parser now
