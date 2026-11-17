@@ -41,9 +41,10 @@ hp-bioscfg/attributes/Secure Boot/current_value:Enable
   always-present Linux sysfs detail with no policy meaning. The parser strips it
   from the identity key, so a dump line `hp-bioscfg/attributes/Secure Boot` maps
   to option identity **`hp-bioscfg/Secure Boot`**.
-- **Multi-line values** are reassembled by joining *all consecutive* lines for a
-  given `(path, key)` with `\n` — no brace/paren balancing is assumed, so values
-  that are not valid JSON/balanced are handled too.
+- **Multi-line values**: real options under `/attributes/` have single-line
+  values, so no multi-line assembly is performed. A repeated ``(path, key)``
+  (which would indicate an unexpected multi-line value or malformed dump) raises
+  an error rather than being silently joined or overwritten.
 - The **option identity** used for policy lookup = the normalized
   `vendor/option` path (after stripping the Linux class quirk, and excluding the
   key), because plain option names could collide across vendors. A human-friendly
@@ -82,8 +83,8 @@ records**. All policy logic operates only on this model.
 - Base abstract parser interface: `parse(source) -> list[Option]`.
 - `SysfsTxtParser` (the `grep -R .` dump), format name `sysfs-txt`. Keeps only
   options under the `<vendor>/attributes/` class; discards other classes and
-  module-level scalars. Multi-line values are joined by consecutive same-key
-  lines (no brace-balance assumption).
+  module-level scalars. Attribute values are single-line; a repeated key raises
+  an error.
 - `HPSetupTxtParser` (HP `HPSetup.txt`-style reports), format name `hp-setup`,
   read by the same CLI with `--format` or auto-detected from the text.
 - A registry / factory that selects a parser by input kind; `--format auto`

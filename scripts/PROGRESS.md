@@ -62,18 +62,16 @@ support a manual review → merge workflow. See PLAN.md.
   keys between the sysfs dump and the HP Setup report.
 - Tests: `tests/test_hpsetup_parser.py` + `tests/data/hpsetup_sample.txt`.
 
-### Step 5 — focusing the sysfs parser on `/attributes/` + simplified multi-line
+### Step 5 — focusing the sysfs parser on `/attributes/` + single-line guard
 - The sysfs parser now keeps **only real options** under the
   `<vendor>/attributes/` class. HP-specific non-option data under `authentication/`
   and `power/`, and module-level scalars like `pending_reboot:0`, are discarded.
-- Multi-line value reassembly simplified: all consecutive lines for a given
-  `(path, key)` are joined with `\n` — the previous brace-balance heuristic
-  (`_continues`) is removed, so values that aren't valid/balanced JSON are still
-  handled correctly.
 - Dropped the authentication/power-specific field keys from the known-key list.
+- Real `/attributes/` values are single-line (no multi-line values exist in
+  practice), so multi-line assembly was removed entirely. A repeated `(path, key)`
+  now raises a `ValueError` instead of being joined or silently overwritten.
 - Tests updated: non-`attributes` classes are asserted discarded, the
-  class-level scalar is discarded, and multi-line joins by consecutive same-key
-  lines.
+  class-level scalar is discarded, and a duplicate key raises.
 
 ## Known caveats / notes
 - Cross-format name reconciliation: HP exposes `/` in option names as `!` in

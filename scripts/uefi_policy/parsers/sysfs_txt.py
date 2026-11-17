@@ -75,7 +75,6 @@ class SysfsTxtParser(BaseParser):
     def parse(self, source: str) -> List[Option]:
         grouped: Dict[str, Dict[str, str]] = {}
         order: List[str] = []
-        last_path_key: Tuple[str, str] | None = None
 
         def ensure(path: str):
             if path not in grouped:
@@ -97,14 +96,15 @@ class SysfsTxtParser(BaseParser):
             if len(segs) < 3 or segs[1] != self.kept_class:
                 continue
             ensure(path)
-            if last_path_key == (path, key):
-                # Same key again: continuation of a multi-line value. Join all
-                # consecutive lines for a given (path, key) regardless of format
-                # (works even if the value is not valid JSON).
-                grouped[path][key] += "\n" + value
-            else:
-                grouped[path][key] = value
-            last_path_key = (path, key)
+            if key in grouped[path]:
+                # Options under /attributes/ have single-line values, so a second
+                # line for the same key is unexpected. Fail loudly rather than
+                # silently overwriting or guessing at multi-line assembly.
+                raise ValueError(
+                    f"duplicate key {key!r} for option {path!r}; "
+                    "expected single-line value under /attributes/"
+                )
+            grouped[path][key] = value
 
         options: List[Option] = []
         for path in order:

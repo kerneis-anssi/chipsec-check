@@ -48,17 +48,16 @@ class SysfsTxtParserTest(unittest.TestCase):
         paths = {o.path for o in options}
         self.assertNotIn("hp-bioscfg/pending_reboot", paths)
 
-    def test_multiline_value_reassembled(self):
-        # A multi-line value under attributes is reassembled simply by joining
-        # consecutive lines for the same key (no brace-balance needed).
+    def test_duplicate_key_raises(self):
+        # Real /attributes/ values are single-line; a repeated key for the same
+        # option is unexpected and should fail loudly rather than being joined
+        # or silently overwritten.
         src = (
             "hp-bioscfg/attributes/Custom Cfg/current_value:line one\n"
             "hp-bioscfg/attributes/Custom Cfg/current_value:line two\n"
-            "hp-bioscfg/attributes/Custom Cfg/current_value:line three\n"
         )
-        options = create("sysfs-txt").parse(src)
-        cfg = next(o for o in options if o.path == "hp-bioscfg/Custom Cfg")
-        self.assertEqual(cfg.current_value, "line one\nline two\nline three")
+        with self.assertRaises(ValueError):
+            create("sysfs-txt").parse(src)
 
     def test_fat32_escape_canonicalized(self):
         # A sysfs name using HP's `!` escape for `/` should map to `/`.
