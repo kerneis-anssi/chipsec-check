@@ -121,6 +121,10 @@ class ReviewMergeTest(unittest.TestCase):
             self.assertEqual(loaded[0].accept, ["Enable"])
             self.assertEqual(loaded[0].current, "Disable")
             self.assertEqual(loaded[0].unknown, ["Disable"])
+            # accept/reject always emitted (even empty), on their own lines.
+            raw = open(path, encoding="utf-8").read()
+            self.assertIn('"reject": [', raw)
+            self.assertIn('"accept": [', raw)
 
     def test_invalid_review_raises(self):
         with tempfile.TemporaryDirectory() as d:

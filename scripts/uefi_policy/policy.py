@@ -130,10 +130,10 @@ class ReviewOption:
 
     def to_dict(self) -> dict:
         d: dict = {}
-        if self.accept:
-            d["accept"] = list(self.accept)
-        if self.reject:
-            d["reject"] = list(self.reject)
+        # Always include accept/reject (even empty) so a reviewer can see both
+        # targets and cut/paste values between them.
+        d["accept"] = list(self.accept)
+        d["reject"] = list(self.reject)
         if self.wildcard:
             d["wildcard"] = True
         if self.current is not None:
@@ -180,13 +180,36 @@ def load_review(path: str) -> List[ReviewOption]:
     return [_validate_review_option(p, d) for p, d in sorted(options.items())]
 
 
+def _format_review(data: dict) -> str:
+    """Serialize the review DB to JSON, expanding empty arrays.
+
+    An empty ``accept``/``reject`` array is written with ``[`` and ``]`` on
+    their own lines so a reviewer can cut/paste values between them without
+    editing a ``[]`` token:
+    ``"reject": [``, then ``],`` on the next line.
+    """
+    blob = json.dumps(data, indent=2, ensure_ascii=False)
+    lines = blob.splitlines()
+    out: List[str] = []
+    for line in lines:
+        stripped = line.rstrip()
+        if stripped.endswith(": [],"):
+            indent = line[: len(line) - len(line.lstrip())]
+            opener = stripped[: -len(" [],")] + " ["
+            out.append(opener)
+            out.append(indent + "],")
+        else:
+            out.append(line)
+    return "\n".join(out)
+
+
 def save_review(options: List[ReviewOption], path: str) -> None:
     data = {
         "version": REVIEW_VERSION,
         "review": {o.path: o.to_dict() for o in options},
     }
     with open(path, "w", encoding="utf-8") as fh:
-        json.dump(data, fh, indent=2, ensure_ascii=False)
+        fh.write(_format_review(data))
         fh.write("\n")
 
 
