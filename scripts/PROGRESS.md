@@ -115,6 +115,23 @@ support a manual review → merge workflow. See PLAN.md.
 - Docs (README/PLAN) rewritten to treat fwupd JSON as the primary input. The
   `fwupd-json` and `hp-setup` formats remain.
 
+### Step 10 — sysfs firmware-attributes directory parser
+- Added `uefi_policy/parsers/sysfs_dir.py` (`SysfsDirParser`, format
+  `sysfs-dir`). Given a directory (assumed to be `/sys/class/firmware-attributes`
+  or a copy), it descends `<vendor>/attributes/*` and reads each option's
+  attribute files.
+  - Only the `attributes` class is parsed; `authentication`/`power` and
+    module-level scalars like `pending_reboot` are skipped (matching fwupd).
+  - Mirrors the fwupd typing: an option with a `possible_values`/`elements`
+    file is `enumeration`, otherwise `string` — so the two structured sources
+    reconcile to identical policy keys.
+  - Canonical key built from the on-disk `<vendor>/attributes/<option>` path
+    (strip `attributes`, undo `!` → `/`).
+- CLI: `dump` accepts a directory; with `--format auto` or `sysfs-dir` it uses
+  this parser. A directory passed with a non-directory format raises a clear
+  error.
+- Tests: `tests/test_sysfs_dir_parser.py` + `tests/data/sysfs_dir/` fixture.
+
 ## Known caveats / notes
 - Cross-format name reconciliation: HP exposes `/` in option names as `!`,
   because `/` is forbidden in filenames (FAT32). Both the fwupd JSON `Name`/

@@ -27,12 +27,22 @@ def _read_source(path: str) -> str:
 def cmd_dump(args: argparse.Namespace, stream=None) -> int:
     stream = stream or sys.stdout
     try:
-        source = _read_source(args.input)
-        if args.format == "auto":
-            parser = detect(source)
+        if os.path.isdir(args.input):
+            # A directory: assume /sys/class/firmware-attributes (or a copy).
+            if args.format not in ("auto", "sysfs-dir"):
+                raise ValueError(
+                    f"input {args.input!r} is a directory, expected --format auto "
+                    "or sysfs-dir"
+                )
+            parser = create("sysfs-dir")
+            options = parser.parse(args.input)
         else:
-            parser = create(args.format)
-        options = parser.parse(source)
+            source = _read_source(args.input)
+            if args.format == "auto":
+                parser = detect(source)
+            else:
+                parser = create(args.format)
+            options = parser.parse(source)
         policy = load_policy(args.policy)
     except PolicyError as exc:
         print(f"error: {exc}", file=sys.stderr)
@@ -81,7 +91,7 @@ def build_parser() -> argparse.ArgumentParser:
     sub = parser.add_subparsers(dest="command", required=False)
 
     dump = sub.add_parser("dump", help="analyze a configuration dump against a policy")
-    dump.add_argument("input", help="path to the configuration dump text file")
+    dump.add_argument("input", help="path to a config dump file or a sysfs firmware-attributes directory")
     dump.add_argument("--format", default="auto", choices=["auto"] + available(),
                       help="input parser (default: auto-detect)")
     dump.add_argument("--policy", required=True, help="policy JSON database")

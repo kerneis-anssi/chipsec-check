@@ -9,7 +9,9 @@ from __future__ import annotations
 from uefi_policy.parsers.base import BaseParser, available, create, register
 from uefi_policy.parsers.fwupd_json import FwupdJsonParser
 from uefi_policy.parsers.hpsetup_txt import HPSetupTxtParser
+from uefi_policy.parsers.sysfs_dir import SysfsDirParser
 
+register("sysfs-dir", SysfsDirParser)
 register("fwupd-json", FwupdJsonParser)
 register("hp-setup", HPSetupTxtParser)
 

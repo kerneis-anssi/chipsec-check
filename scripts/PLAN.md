@@ -80,9 +80,15 @@ records**. All policy logic operates only on this model.
   `!` → `/`).
 - `HPSetupTxtParser` (HP `HPSetup.txt`-style reports), format name `hp-setup`,
   read by the same CLI with `--format` or auto-detected from the text.
+- `SysfsDirParser` (a `/sys/class/firmware-attributes` directory or copy),
+  format name `sysfs-dir`. Recursively descends `<vendor>/attributes/*`, reading
+  each option's attribute files. Skips non-`attributes` classes and module-level
+  scalars. Typing and canonical keys mirror the fwupd parser, so a directory
+  and its `get-bios-settings` JSON reconcile identically.
 - A registry / factory that selects a parser by input kind; `--format auto`
   (default) sniffs the text/file structure.
-  - JSON starting with `{` (fwupd), else HP Setup.
+  - Directory input → `sysfs-dir`; JSON starting with `{` (fwupd) → `fwupd-json`;
+    else HP Setup.
 - Capabilities of the HP Setup parser:
   - `*`-prefixed value ⇒ enumeration (`possible_values` + `current_value`).
   - single unmarked value ⇒ scalar `string`/`integer` current.
@@ -211,7 +217,8 @@ analyze_uefi_cfg.py merge    --review REVIEW [--policy POL] [--backup]
 
 `dump` is the default action:
 - `--input` source dump path (mandatory).
-- `--format`/auto-detect parser (`auto` is default; `fwupd-json`, `hp-setup`).
+- `--format`/auto-detect parser (`auto` is default; `sysfs-dir`,
+  `fwupd-json`, `hp-setup`).
 - `--policy` path to policy JSON (required).
 - `--report` path for the text report copy (in addition to stdout).
 - `--review` path for the review file (auto-named if omitted: `<dump>.review.json`).
@@ -234,6 +241,7 @@ scripts/
       __init__.py     # registry/factory
       fwupd_json.py   # FwupdJsonParser
       hpsetup_txt.py  # HPSetupTxtParser
+      sysfs_dir.py    # SysfsDirParser
     policy.py         # load/save/validate policy DB, review DB
     analyze.py        # evaluation logic
     reports.py        # stdout + file report formatting
