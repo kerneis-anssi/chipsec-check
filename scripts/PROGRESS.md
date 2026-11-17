@@ -81,6 +81,17 @@ support a manual review → merge workflow. See PLAN.md.
   `PolicyError` and `BrokenPipeError`, printing a clean error + non-zero exit.
 - Tests: empty/malformed/non-object policy files, plus existing coverage.
 
+### Step 7 — don't ignore unset (typed) options
+- `IGNORED` is now reserved for pure metadata rows only: `Option.is_policy_checkable`
+  returns `type is not None`. A typed option (e.g. a `string`) with no
+  `current_value` in the dump is never silently ignored.
+  - Empty policy → `UNKNOWN_OPTION`.
+  - Policy-covered → `UNKNOWN_VALUE` (nothing to compare) unless wildcarded → `OK`.
+- `gather_review` surfaces a covered-but-unset option as a review entry with an
+  empty value, so it is not silently dropped from the review workflow.
+- Result on the real dump: `IGNORED` dropped from 25 → 1 (only `Sure_Start`, a
+  type-less row). The 23 unset strings now report instead of being ignored.
+
 ## Known caveats / notes
 - Cross-format name reconciliation: HP exposes `/` in option names as `!` in
   the sysfs dump (FAT32 forbids `/` in filenames). The sysfs parser now

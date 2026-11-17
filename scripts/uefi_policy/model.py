@@ -48,8 +48,10 @@ class Option:
 
     @property
     def is_policy_checkable(self) -> bool:
-        """A metadata-only option (no type/current_value) is not checkable."""
-        return self.type is not None and self.current_value is not None
+        """Whether this is a real option (has a type) rather than a pure
+        metadata row. A typed option is handled even if it has no current value
+        in the dump; only type-less rows are ignored."""
+        return self.type is not None
 
 
 @dataclass

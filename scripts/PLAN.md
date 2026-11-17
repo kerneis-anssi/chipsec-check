@@ -143,7 +143,10 @@ min-length constraints are out of scope for v1 but the schema can be extended
 later.
 
 Statuses: `OK`, `VIOLATION`, `UNKNOWN_OPTION`, `UNKNOWN_VALUE`
-(and `IGNORED` for metadata-only options with no `current_value`, excluded from checks).
+(and `IGNORED` for type-less metadata rows — not real options). A typed option
+with no `current_value` in the dump is still evaluated (not ignored): with an
+empty policy it is `UNKNOWN_OPTION`, and if policy-covered it is
+`UNKNOWN_VALUE` (nothing to compare) unless wildcarded.
 
 An option may carry **multiple** statuses at once — e.g. its current value is in
 `reject` *and* another possible value is still unreviewed ⇒ report both

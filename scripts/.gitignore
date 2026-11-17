@@ -1,6 +1,18 @@
 # Sample UEFI configuration dumps — ignore them (test data, not source)
 bios/
 
+# User data files (dumps, reports, policies) — not source; never commit
+firmware-attributes.txt
+HpSetup.txt
+HP_*_clean.txt
+*BCU*clean.txt
+fwupd-attributes.json
+hp-policy.json
+report.txt
+review.json
+error.log
+*.review.json
+
 # Python artifacts
 __pycache__/
 *.py[cod]

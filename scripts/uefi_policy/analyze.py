@@ -55,6 +55,7 @@ def _dedup(values: Sequence[str]) -> List[str]:
 def evaluate_option(option: Option, policy: Policy) -> Result:
     result = Result(option=option)
     if not option.is_policy_checkable:
+        # Pure metadata row (no type): not a real option, skip it.
         result.statuses.append(Status.IGNORED)
         return result
 
@@ -68,14 +69,20 @@ def evaluate_option(option: Option, policy: Policy) -> Result:
         return result
 
     current = option.current_value
-    unknown = _unknown_values(option, entry)
     known = set(entry.accept) | set(entry.reject)
 
-    if current is not None and current in set(entry.reject):
+    if current is None:
+        # A typed option with no current value in the dump. It is covered by
+        # the policy but there is nothing to compare: flag for review rather
+        # than silently ignoring it.
+        result.statuses.append(Status.UNKNOWN_VALUE)
+        return result
+
+    if current in set(entry.reject):
         result.statuses.append(Status.VIOLATION)
-    elif current is not None and current in set(entry.accept):
+    elif current in set(entry.accept):
         result.statuses.append(Status.OK)
-    elif current is not None:
+    else:
         # Current value is not covered by accept/reject: needs review, not a
         # hard violation (it's unknown, not explicitly forbidden). If nothing
         # at all is accepted, still pragmatically a violation (fail-closed).
@@ -84,7 +91,7 @@ def evaluate_option(option: Option, policy: Policy) -> Result:
         result.statuses.append(Status.UNKNOWN_VALUE)
 
     # Completeness: any enumerable value not covered by the policy.
-    if unknown_specific := [v for v in _option_values(option) if v not in known]:
+    if unknown_values := [v for v in _option_values(option) if v not in known]:
         result.statuses.append(Status.UNKNOWN_VALUE)
 
     return result
@@ -107,6 +114,11 @@ def gather_review(results: Sequence[Result], policy: Policy) -> List[ReviewEntry
             for v in _dedup(_option_values(r.option)):
                 entries.append(ReviewEntry(path=r.option.path, value=v))
         elif Status.UNKNOWN_VALUE in r.statuses:
-            for v in _unknown_values(r.option, entry):
+            vals = _unknown_values(r.option, entry)
+            if not vals and r.option.current_value is None:
+                # A typed option with no current value and no enumerable values:
+                # still surface it for review (empty value) rather than ignoring it.
+                vals = [""]
+            for v in vals:
                 entries.append(ReviewEntry(path=r.option.path, value=v))
     return entries

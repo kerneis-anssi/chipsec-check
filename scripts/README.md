@@ -82,7 +82,7 @@ Rules:
 - `VIOLATION`     — current value is explicitly rejected (or nothing is accepted).
 - `UNKNOWN_OPTION`— option not present in the policy.
 - `UNKNOWN_VALUE` — option is present but some value isn't covered yet.
-- `IGNORED`       — metadata-only option (no `type`/`current_value`).
+- `IGNORED`       — not a real option (no `type`, e.g. a metadata row).
 
 An option can carry several statuses at once (e.g. `VIOLATION` + `UNKNOWN_VALUE`)
 when the current value is rejected while other values remain unreviewed.

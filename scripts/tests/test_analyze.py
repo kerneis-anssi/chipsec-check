@@ -51,10 +51,34 @@ class AnalyzeTest(unittest.TestCase):
 
     def test_ignored_no_type(self):
         policy = Policy()
-        opt = Option(path="hp-x/Meta", name="Meta")  # no type/current_value
-        r = Result(opt)
-        r.statuses.append(Status.IGNORED)
-        self.assertEqual(r.primary_status, Status.IGNORED)
+        opt = Option(path="hp-x/Meta", name="Meta")  # no type -> metadata only
+        r = evaluate([opt], policy)[0]
+        self.assertIn(Status.IGNORED, r.statuses)
+
+    def test_unset_string_not_ignored_empty_policy(self):
+        # A typed string option with no current value is a real option: with an
+        # empty policy it should be UNKNOWN_OPTION, not IGNORED.
+        opt = Option(path="hp-x/Asset Tracking Number", name="x", type="string", current_value=None)
+        r = evaluate([opt], Policy())[0]
+        self.assertIn(Status.UNKNOWN_OPTION, r.statuses)
+        self.assertNotIn(Status.IGNORED, r.statuses)
+
+    def test_unset_string_covered_by_policy(self):
+        # Covered but no value to compare: flags for review (not ignored), and
+        # still surfaces as a review entry even with no enumerable value.
+        opt = Option(path="hp-x/Asset Tracking Number", name="x", type="string", current_value=None)
+        policy = Policy(entries={"hp-x/Asset Tracking Number": PolicyEntry(accept=["abc"])})
+        r = evaluate([opt], policy)[0]
+        self.assertIn(Status.UNKNOWN_VALUE, r.statuses)
+        review = gather_review([r], policy)
+        self.assertEqual([(e.path, e.value) for e in review],
+                         [("hp-x/Asset Tracking Number", "")])
+
+    def test_unset_string_wildcard_ok(self):
+        opt = Option(path="hp-x/Asset Tracking Number", name="x", type="string", current_value=None)
+        policy = Policy(entries={"hp-x/Asset Tracking Number": PolicyEntry(wildcard=True)})
+        r = evaluate([opt], policy)[0]
+        self.assertEqual([s for s in r.statuses], [Status.OK])
 
 
 if __name__ == "__main__":
