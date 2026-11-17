@@ -161,43 +161,49 @@ single scalar.
 
 ## 5. Review workflow
 
-When unknown options/values are found, write a **review file** (JSON), one entry
-per unknown `(path, value)` combination, each carrying a decision field:
+When unknown options/values are found, write a **review file** (JSON) mirroring
+the policy shape — a `review` object keyed by option path, where each value is
+an option dict with `accept`/`reject`/`wildcard` plus `current` and `unknown`,
+so a reviewer edits it just like the policy file:
 
 ```json
 {
-  "version": 1,
-  "entries": [
-    {
-      "path": "hp-bioscfg/New Option",
-      "value": "SomeValue",
-      "decision": "review"      // "review" | "accept" | "reject" | "wildcard"
+  "version": 2,
+  "review": {
+    "hp-bioscfg/New Option": {
+      "accept":  [],
+      "current": "SomeValue",
+      "unknown": ["OtherValue", "SomeValue"]
     }
-  ]
+  }
 }
 ```
 
-- Default decision is `review`.
-- A human edits `decision` for each line, optionally deleting rows they do not
-  want to add. Choices: `accept`, `reject`, or `wildcard` (whole option "don't
-  care"). **`wildcard` is expected to be the most common case**, so it should
-  be effortless to specify (see CLI below). The `value` field is ignored when
-  `decision` is `wildcard` — the whole option is accepted regardless of value.
+- Only options needing a decision appear. Set `wildcard: true` for "don't
+  care", or move values into `accept`/`reject`. **`wildcard` is expected to be
+  the most common case**, so it should be effortless to specify (see CLI below).
 - The review file is also useful for browsing what the policy does *not*
   currently cover, so it doubles as the manual-review artifact.
 
 ### Merge command
 
-`merge-review --review review.json --policy policy.json`:
+`merge --review review.json --policy policy.json`:
 
-- For each entry with decision `review` → error / refuse (must be resolved).
-- `accept` → add value to `accept` list (dedup).
-- `reject` → add value to `reject` list (dedup).
+- Applies each option's final `accept`/`reject` list (or `wildcard`) to the
+  policy. The reviewed lists **replace** any prior policy entry — they do not
+  append to it (the review file is authoritative).
+- `accept` → set the option's `accept` list (dedup); `reject` → same for reject.
+  Lists are created empty if absent, which lets a reviewer explicitly clear a
+  prior accepted value.
 - `wildcard` → set the option to `wildcard: true`; any existing `accept`/`reject`
   lists for it are dropped (a wildcard supercedes per-value rules).
-- Skips entries whose option path does not exist in the source dump — unless
-  the value is for a brand-new option, in which case a new policy row is created
-  (this bootstraps options that were absent from the policy but seen in the dump).
+- An option left **fully undecided** (empty `accept`/`reject`, no `wildcard`) is
+  **skipped silently** — no policy row is created/changed — and `merge` reports
+  how many were skipped. With `--wildcard-all`, every undecided option is instead
+  promoted to a wildcard.
+- For a brand-new option, a new policy row is created the first time a value is
+  decided (this bootstraps options that were absent from the policy but seen in
+  the dump).
 - Writes the updated policy DB back (with a backup of the previous file).
 - If all values of an option now fall in `accept` or `reject`, the DB row is
   complete; the option stops being flagged `UNKNOWN_VALUE`.
@@ -225,7 +231,7 @@ analyze_uefi_cfg.py merge    --review REVIEW [--policy POL] [--backup]
 
 `merge`:
 - `--review`, `--policy` (default same policy), `--backup` to keep pre-merge copy.
-- `--wildcard-all`: convenience flag — accept every not-yet-decided entry as a
+- `--wildcard-all`: convenience flag — accept every not-yet-decided option as a
   wildcard (sets `wildcard: true` for its option). Since wildcard is the expected
   default for most options, this lets the user review only the few options that
   need an explicit `accept`/`reject` and wildcard the rest in one go.

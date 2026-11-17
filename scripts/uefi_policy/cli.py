@@ -77,14 +77,16 @@ def cmd_merge(args: argparse.Namespace) -> int:
     try:
         policy = load_policy(args.policy) if os.path.exists(args.policy) else Policy()
         entries = load_review(args.review)
-        applied = merge_review(policy, entries, wildcard_all=args.wildcard_all)
+        applied, skipped = merge_review(policy, entries, wildcard_all=args.wildcard_all)
     except PolicyError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1
     save_policy(policy, args.policy, backup=args.backup)
-    print(f"merged {applied} entries into {args.policy}")
+    msg = f"merged {applied} entries into {args.policy}"
+    if skipped:
+        msg += f" (skipped {skipped} undecided)"
+    print(msg)
     return 0
-
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="analyze_uefi_cfg.py", description=__doc__)

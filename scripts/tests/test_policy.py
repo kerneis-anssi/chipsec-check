@@ -6,13 +6,10 @@ import tempfile
 import unittest
 
 from uefi_policy.policy import (
-    DECISION_ACCEPT,
-    DECISION_REJECT,
-    DECISION_WILDCARD,
     Policy,
     PolicyError,
     PolicyEntry,
-    ReviewEntry,
+    ReviewOption,
     load_policy,
     load_review,
     merge_review,
@@ -71,40 +68,76 @@ class ReviewMergeTest(unittest.TestCase):
 
     def test_merge_accept(self):
         p = self._policy()
-        n = merge_review(p, [ReviewEntry(path="hp-x/Existing", value="b", decision=DECISION_ACCEPT)])
-        self.assertEqual(n, 1)
+        applied, skipped = merge_review(
+            p, [ReviewOption(path="hp-x/Existing", accept=["a", "b"])])
+        self.assertEqual((applied, skipped), (1, 0))
         self.assertEqual(p.get("hp-x/Existing").accept, ["a", "b"])
 
     def test_merge_bootstraps_new_option(self):
         p = self._policy()
-        merge_review(p, [ReviewEntry(path="hp-x/New", value="x", decision=DECISION_ACCEPT)])
+        merge_review(p, [ReviewOption(path="hp-x/New", accept=["x"])])
         self.assertIsNotNone(p.get("hp-x/New"))
         self.assertEqual(p.get("hp-x/New").accept, ["x"])
 
     def test_merge_wildcard_clears_lists(self):
         p = Policy(entries={"hp-x/W": PolicyEntry(accept=["a"])})
-        merge_review(p, [ReviewEntry(path="hp-x/W", value="ignored", decision=DECISION_WILDCARD)])
+        merge_review(p, [ReviewOption(path="hp-x/W", wildcard=True)])
         self.assertTrue(p.get("hp-x/W").wildcard)
         self.assertEqual(p.get("hp-x/W").accept, [])
 
     def test_merge_wildcard_all(self):
         p = self._policy()
-        merge_review(p, [ReviewEntry(path="hp-x/Other", value="a", decision="review")],
-                     wildcard_all=True)
+        # An undecided option becomes a wildcard under --wildcard-all.
+        applied, _ = merge_review(
+            p, [ReviewOption(path="hp-x/Other", unknown=["a"])], wildcard_all=True)
+        self.assertEqual(applied, 1)
         self.assertTrue(p.get("hp-x/Other").wildcard)
 
-    def test_unresolved_raises(self):
+    def test_undecided_skipped(self):
         p = self._policy()
-        with self.assertRaises(PolicyError):
-            merge_review(p, [ReviewEntry(path="hp-x/Other", value="a", decision="review")])
+        applied, skipped = merge_review(
+            p, [ReviewOption(path="hp-x/Other", unknown=["a"])])
+        self.assertEqual((applied, skipped), (0, 1))
+        self.assertIsNone(p.get("hp-x/Other"))
 
-    def test_invalid_decision_raises(self):
+    def test_merge_reject(self):
+        p = Policy()
+        merge_review(p, [ReviewOption(path="hp-x/Foo", reject=["Disable"])])
+        self.assertEqual(p.get("hp-x/Foo").reject, ["Disable"])
+
+    def test_accept_reject_conflict_raises(self):
+        p = Policy()
+        with self.assertRaises(PolicyError):
+            merge_review(p, [ReviewOption(path="hp-x/Foo", accept=["a"], reject=["b"])])
+
+    def test_review_io_roundtrip(self):
+        opt = ReviewOption(path="hp-x/Foo", accept=["Enable"], current="Disable",
+                           unknown=["Disable"])
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "review.json")
+            save_review([opt], path)
+            loaded = load_review(path)
+            self.assertEqual(len(loaded), 1)
+            self.assertEqual(loaded[0].accept, ["Enable"])
+            self.assertEqual(loaded[0].current, "Disable")
+            self.assertEqual(loaded[0].unknown, ["Disable"])
+
+    def test_invalid_review_raises(self):
         with tempfile.TemporaryDirectory() as d:
             path = os.path.join(d, "review.json")
             with open(path, "w") as fh:
-                json.dump({"version": 1, "entries": [{"path": "a", "value": "b", "decision": "bogus"}]}, fh)
+                json.dump({"version": 2, "review": {"a": {"accept": "not-a-list"}}}, fh)
             with self.assertRaises(PolicyError):
                 load_review(path)
+
+    def test_missing_review_object_raises(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "review.json")
+            with open(path, "w") as fh:
+                json.dump({"version": 2, "entries": []}, fh)
+            with self.assertRaises(PolicyError) as ctx:
+                load_review(path)
+            self.assertIn("review", str(ctx.exception))
 
 
 if __name__ == "__main__":

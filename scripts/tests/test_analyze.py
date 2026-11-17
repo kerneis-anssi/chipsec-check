@@ -40,14 +40,16 @@ class AnalyzeTest(unittest.TestCase):
         self.assertIn(Status.OK, r.statuses)
         self.assertIn(Status.UNKNOWN_VALUE, r.statuses)
         review = gather_review([r], policy)
-        self.assertEqual([e.value for e in review], ["Disable"])
+        self.assertEqual(review[0].path, "hp-x/Foo")
+        self.assertEqual(review[0].unknown, ["Disable"])
+        self.assertEqual(review[0].accept, ["Enable"])
 
     def test_current_unknown_and_other_unknown(self):
         policy = Policy(entries={"hp-x/Foo": PolicyEntry(accept=["Enable"])})
         r = evaluate([mk_option("hp-x/Foo", "Baz", ["Bar", "Enable"])], policy)[0]
         self.assertIn(Status.UNKNOWN_VALUE, r.statuses)
         review = gather_review([r], policy)
-        self.assertEqual({e.value for e in review}, {"Baz", "Bar"} | set())
+        self.assertEqual(set(review[0].unknown), {"Baz", "Bar"})
 
     def test_ignored_no_type(self):
         policy = Policy()
@@ -64,15 +66,16 @@ class AnalyzeTest(unittest.TestCase):
         self.assertNotIn(Status.IGNORED, r.statuses)
 
     def test_unset_string_covered_by_policy(self):
-        # Covered but no value to compare: flags for review (not ignored), and
-        # still surfaces as a review entry even with no enumerable value.
+        # Covered but no value to compare: it surfaces for review even with no
+        # enumerable value (unknown stays empty; nothing to move).
         opt = Option(path="hp-x/Asset Tracking Number", name="x", type="string", current_value=None)
         policy = Policy(entries={"hp-x/Asset Tracking Number": PolicyEntry(accept=["abc"])})
         r = evaluate([opt], policy)[0]
         self.assertIn(Status.UNKNOWN_VALUE, r.statuses)
         review = gather_review([r], policy)
-        self.assertEqual([(e.path, e.value) for e in review],
-                         [("hp-x/Asset Tracking Number", "")])
+        self.assertEqual(review[0].path, "hp-x/Asset Tracking Number")
+        self.assertEqual(review[0].accept, ["abc"])
+        self.assertEqual(review[0].unknown, [])
 
     def test_unset_string_wildcard_ok(self):
         opt = Option(path="hp-x/Asset Tracking Number", name="x", type="string", current_value=None)

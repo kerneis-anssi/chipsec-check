@@ -132,6 +132,25 @@ support a manual review → merge workflow. See PLAN.md.
   error.
 - Tests: `tests/test_sysfs_dir_parser.py` + `tests/data/sysfs_dir/` fixture.
 
+### Step 11 — per-option review format (mirror the policy file)
+- Replaced the per-value `(path, value, decision)` review entries with a
+  per-option format that mirrors the policy file: the review file now has a
+  `review` object keyed by option path, where each value is an option dict with
+  `accept`/`reject`/`wildcard` plus `current` (observed value) and `unknown`
+  (undecided values). A reviewer just moves values between `accept`/`reject` or
+  sets `wildcard: true`.
+- `gather_review()` returns `List[ReviewOption]`; `merge_review()` now takes
+  `ReviewOption`s and returns `(applied, skipped)`. Merged lists **replace** the
+  policy entry (the review file is authoritative), and an option left fully
+  undecided is **skipped silently** (counted in `skipped`) unless `--wildcard-all`
+  promotes it to a wildcard.
+- Removed the obsolete `DECISION_*`/`VALID_DECISIONS` constants and `ReviewEntry`.
+  `REVIEW_VERSION` bumped 1 → 2 (policy version stays 1).
+- Tests: `test_policy.py` rewritten for `ReviewOption` (accept/bootstrap/
+  wildcard/wildcard-all/undecided-skipped/reject/conflict/I-O roundtrip/invalid/
+  missing `review` object); `test_analyze.py` assertions updated for the
+  per-option `unknown` lists. 42 tests pass.
+
 ## Known caveats / notes
 - Cross-format name reconciliation: HP exposes `/` in option names as `!`,
   because `/` is forbidden in filenames (FAT32). Both the fwupd JSON `Name`/

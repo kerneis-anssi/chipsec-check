@@ -6,17 +6,10 @@ import json
 import os
 import shutil
 from dataclasses import dataclass, field
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 POLICY_VERSION = 1
-REVIEW_VERSION = 1
-
-# Valid review decisions.
-DECISION_REVIEW = "review"
-DECISION_ACCEPT = "accept"
-DECISION_REJECT = "reject"
-DECISION_WILDCARD = "wildcard"
-VALID_DECISIONS = (DECISION_REVIEW, DECISION_ACCEPT, DECISION_REJECT, DECISION_WILDCARD)
+REVIEW_VERSION = 2
 
 
 class PolicyError(Exception):
@@ -118,45 +111,79 @@ def save_policy(policy: Policy, path: str, backup: bool = False) -> None:
 
 
 @dataclass
-class ReviewEntry:
+class ReviewOption:
+    """Review state for a single option, mirroring a policy entry.
+
+    Mirrors the policy shape (accept/reject/wildcard) so a reviewer edits the
+    review file just like the policy: move values between ``accept`` and
+    ``reject`` (and can set ``wildcard: true``). ``current`` is the option's
+    current value from the dump; ``unknown`` lists values not yet decided.
+    Only options needing review are present.
+    """
+
     path: str
-    value: str
-    decision: str = DECISION_REVIEW
+    accept: List[str] = field(default_factory=list)
+    reject: List[str] = field(default_factory=list)
+    wildcard: bool = False
+    current: Optional[str] = None
+    unknown: List[str] = field(default_factory=list)
 
     def to_dict(self) -> dict:
-        return {"path": self.path, "value": self.value, "decision": self.decision}
+        d: dict = {}
+        if self.accept:
+            d["accept"] = list(self.accept)
+        if self.reject:
+            d["reject"] = list(self.reject)
+        if self.wildcard:
+            d["wildcard"] = True
+        if self.current is not None:
+            d["current"] = self.current
+        if self.unknown:
+            d["unknown"] = list(self.unknown)
+        return d
 
 
-def _validate_review_entry(d: dict) -> ReviewEntry:
+def _str_list(items) -> List[str]:
+    """Validate a JSON value is a list of strings; returns it."""
+    if not isinstance(items, list) or not all(isinstance(v, str) for v in items):
+        raise PolicyError(f"expected a list of strings, got {items!r}")
+    return list(items)
+
+
+def _validate_review_option(path: str, d: dict) -> ReviewOption:
     if not isinstance(d, dict):
-        raise PolicyError("review entry is not a JSON object")
-    path = d.get("path")
-    value = d.get("value")
-    decision = d.get("decision", DECISION_REVIEW)
-    if not isinstance(path, str) or not path:
-        raise PolicyError(f"review entry missing 'path': {d!r}")
-    if not isinstance(decision, str) or decision not in VALID_DECISIONS:
-        raise PolicyError(
-            f"review entry for '{path}': invalid decision {decision!r}; "
-            f"expected one of {VALID_DECISIONS}"
-        )
-    return ReviewEntry(path=path, value=value if value is not None else "", decision=decision)
+        raise PolicyError(f"review entry for '{path}' is not a JSON object")
+    accept = _str_list(d.get("accept", []))
+    reject = _str_list(d.get("reject", []))
+    unknown = _str_list(d.get("unknown", []))
+    wildcard = bool(d.get("wildcard", False))
+    current = d.get("current")
+    if current is not None and not isinstance(current, str):
+        raise PolicyError(f"review entry for '{path}': 'current' must be a string")
+    return ReviewOption(
+        path=path,
+        accept=accept,
+        reject=reject,
+        wildcard=wildcard,
+        current=current,
+        unknown=unknown,
+    )
 
 
-def load_review(path: str) -> List[ReviewEntry]:
+def load_review(path: str) -> List[ReviewOption]:
     if not os.path.exists(path):
         raise PolicyError(f"review file not found: {path}")
     data = _load_json(path)
-    entries = data.get("entries") if isinstance(data, dict) else None
-    if not isinstance(entries, list):
-        raise PolicyError(f"{path}: missing 'entries' list")
-    return [_validate_review_entry(e) for e in entries]
+    options = data.get("review") if isinstance(data, dict) else None
+    if not isinstance(options, dict):
+        raise PolicyError(f"{path}: missing 'review' object")
+    return [_validate_review_option(p, d) for p, d in sorted(options.items())]
 
 
-def save_review(entries: List[ReviewEntry], path: str) -> None:
+def save_review(options: List[ReviewOption], path: str) -> None:
     data = {
         "version": REVIEW_VERSION,
-        "entries": [e.to_dict() for e in entries],
+        "review": {o.path: o.to_dict() for o in options},
     }
     with open(path, "w", encoding="utf-8") as fh:
         json.dump(data, fh, indent=2, ensure_ascii=False)
@@ -173,26 +200,40 @@ def _dedup(items: List[str]) -> List[str]:
     return out
 
 
-def merge_review(policy: Policy, entries: List[ReviewEntry], wildcard_all: bool = False) -> int:
-    """Apply review decisions to the policy. Returns number of applied entries."""
+def merge_review(policy: Policy, options: List[ReviewOption], wildcard_all: bool = False) -> tuple:
+    """Apply reviewed options to the policy.
+
+    Returns (applied, skipped): how many options were applied versus skipped
+    (left fully undecided — empty accept/reject and no wildcard).
+    """
     applied = 0
-    for entry in entries:
-        decision = DECISION_WILDCARD if (wildcard_all and entry.decision == DECISION_REVIEW) else entry.decision
-        if decision == DECISION_REVIEW:
-            raise PolicyError(
-                f"review entry for '{entry.path}' value {entry.value!r} is still 'review'; "
-                "resolve to accept/reject/wildcard before merging"
-            )
-        entry_obj = policy.entries.setdefault(entry.path, PolicyEntry())
-        if decision == DECISION_WILDCARD:
+    skipped = 0
+    for option in options:
+        decided = bool(option.accept or option.reject or option.wildcard)
+        if not decided and not wildcard_all:
+            skipped += 1
+            continue
+        entry_obj = policy.entries.setdefault(option.path, PolicyEntry())
+        if wildcard_all and not decided:
             entry_obj.accept = []
             entry_obj.reject = []
             entry_obj.wildcard = True
-        elif decision == DECISION_ACCEPT:
-            entry_obj.accept = _dedup(entry_obj.accept + [entry.value])
-        elif decision == DECISION_REJECT:
-            entry_obj.reject = _dedup(entry_obj.reject + [entry.value])
-        else:  # pragma: no cover - guarded by validation
-            raise PolicyError(f"bad decision: {decision}")
+        elif option.wildcard:
+            entry_obj.accept = []
+            entry_obj.reject = []
+            entry_obj.wildcard = True
+        elif option.accept:
+            if option.reject:
+                raise PolicyError(
+                    f"review entry for '{option.path}': accept and reject are "
+                    "mutually exclusive"
+                )
+            entry_obj.accept = _dedup(option.accept)
+            entry_obj.reject = []
+            entry_obj.wildcard = False
+        elif option.reject:
+            entry_obj.reject = _dedup(option.reject)
+            entry_obj.accept = []
+            entry_obj.wildcard = False
         applied += 1
-    return applied
+    return applied, skipped

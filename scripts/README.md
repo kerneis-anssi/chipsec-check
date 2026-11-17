@@ -14,9 +14,9 @@ merge  --review REVIEW --policy POLICY [--wildcard-all] [--backup]
 
 1. `dump` parses the configuration dump, evaluates each option against the
    policy, prints a report to stdout (+ a text copy via `--report`), and writes
-   a **review file** listing every option/value the policy doesn't cover yet.
-2. A human edits the review file, assigning each entry a `decision`
-   (`accept` | `reject` | `wildcard`).
+   a **review file** listing every option the policy doesn't fully cover yet.
+2. A human edits the review file, moving values into `accept`/`reject` (or set
+   `wildcard: true`) for each option.
 3. `merge` applies those decisions to the policy database.
 
 ## Quick start
@@ -29,7 +29,8 @@ fwupdmgr get-bios-settings > bios-settings.json
 python3 analyze_uefi_cfg.py dump bios-settings.json \
     --policy policy.json --report report.txt --review review.json
 
-# Edit review.json: set decision: "accept" | "reject" | "wildcard"
+# Edit review.json: move values into "accept" / "reject",
+# or set "wildcard": true to accept any value for that option.
 
 # Apply the reviewed decisions to the policy
 python3 analyze_uefi_cfg.py merge --review review.json --policy policy.json --backup
@@ -95,21 +96,42 @@ when the current value is rejected while other values remain unreviewed.
 
 ## Review workflow
 
-The review file contains one entry per unknown `(path, value)`, each with a
-`decision`:
+The review file mirrors the policy format: a `review` object keyed by option
+path, where each entry is an option dict with `accept`, `reject`, `wildcard`,
+plus `current` (the observed value) and `unknown` (values not yet decided). The
+reviewer just moves values between `accept`/`reject` (or sets `wildcard: true`
+for "don't care") — exactly as they would in the policy file.
 
 ```json
 {
-  "version": 1,
-  "entries": [
-    { "path": "hp-bioscfg/Secure Boot", "value": "Disable", "decision": "review" }
-  ]
+  "version": 2,
+  "review": {
+    "hp-bioscfg/Secure Boot": {
+      "accept":  ["Enable"],
+      "current": "Enable",
+      "unknown": ["Disable"]
+    },
+    "hp-bioscfg/Bluetooth": {
+      "reject":  ["Enable"],
+      "current": "Enable",
+      "unknown": ["Disable"]
+    },
+    "hp-bioscfg/TPM Device": {
+      "wildcard": true,
+      "current":  "Enable",
+      "unknown":  ["Disable", "Enable"]
+    }
+  }
 }
 ```
 
-Default `decision` is `review`. Edit it to `accept`, `reject`, or `wildcard`
-(whole option "don't care"). With `--wildcard-all`, every still-`review` entry
-is treated as a wildcard during merge — handy since wildcard is the common case.
+Only options still needing a decision appear. `merge` applies each option's
+final `accept`/`reject` list (or `wildcard`) to the policy — the reviewed
+lists **replace** any prior policy entry, they don't merge. An option the
+reviewer leaves fully undecided (empty `accept`/`reject` and no `wildcard`) is
+**skipped silently** (no policy entry is created/changed), and `merge` reports
+how many were skipped. With `--wildcard-all`, every undecided option is instead
+promoted to a wildcard — handy since wildcard is the common case.
 
 `merge` creates new policy rows for options previously unknown, so accepting a
 value for a brand-new option bootstraps it into the policy.
