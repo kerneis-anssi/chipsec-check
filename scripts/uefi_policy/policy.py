@@ -75,11 +75,30 @@ def _validate_policy_entry(path: str, d: dict) -> PolicyEntry:
     return PolicyEntry(accept=accept, reject=reject, wildcard=bool(wildcard))
 
 
+def _load_json(path: str) -> object:
+    """Read and parse a JSON file, wrapping failures into a PolicyError.
+
+    Catches empty files, invalid JSON, decode errors and I/O errors so callers
+    get a clear, actionable message instead of a raw exception.
+    """
+    try:
+        with open(path, "r", encoding="utf-8") as fh:
+            text = fh.read()
+    except (OSError, UnicodeDecodeError) as exc:
+        raise PolicyError(f"cannot read {path}: {exc}") from exc
+    text = text.strip()
+    if not text:
+        raise PolicyError(f"{path}: file is empty")
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError as exc:
+        raise PolicyError(f"{path}: invalid JSON ({exc})") from exc
+
+
 def load_policy(path: str) -> Policy:
     if not os.path.exists(path):
         raise PolicyError(f"policy file not found: {path}")
-    with open(path, "r", encoding="utf-8") as fh:
-        data = json.load(fh)
+    data = _load_json(path)
     entries_section = data.get("policy") if isinstance(data, dict) else None
     if not isinstance(entries_section, dict):
         raise PolicyError(f"{path}: missing 'policy' object")
@@ -127,8 +146,7 @@ def _validate_review_entry(d: dict) -> ReviewEntry:
 def load_review(path: str) -> List[ReviewEntry]:
     if not os.path.exists(path):
         raise PolicyError(f"review file not found: {path}")
-    with open(path, "r", encoding="utf-8") as fh:
-        data = json.load(fh)
+    data = _load_json(path)
     entries = data.get("entries") if isinstance(data, dict) else None
     if not isinstance(entries, list):
         raise PolicyError(f"{path}: missing 'entries' list")

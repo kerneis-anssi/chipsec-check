@@ -26,14 +26,21 @@ def _read_source(path: str) -> str:
 
 def cmd_dump(args: argparse.Namespace, stream=None) -> int:
     stream = stream or sys.stdout
-    source = _read_source(args.input)
-    if args.format == "auto":
-        parser = detect(source)
-    else:
-        parser = create(args.format)
-    options = parser.parse(source)
+    try:
+        source = _read_source(args.input)
+        if args.format == "auto":
+            parser = detect(source)
+        else:
+            parser = create(args.format)
+        options = parser.parse(source)
+        policy = load_policy(args.policy)
+    except PolicyError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    except ValueError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
 
-    policy = load_policy(args.policy)
     results = evaluate(options, policy)
     report = build_report(results)
     write_report(report, stream)
@@ -100,4 +107,10 @@ def main(argv: Optional[List[str]] = None) -> int:
     if not hasattr(args, "func"):
         parser.print_help()
         return 2
-    return args.func(args)
+    try:
+        return args.func(args)
+    except PolicyError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    except BrokenPipeError:
+        return 0

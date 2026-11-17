@@ -30,6 +30,32 @@ class PolicyTest(unittest.TestCase):
             loaded = load_policy(path)
             self.assertEqual(loaded.get("hp-x/Foo").accept, ["Enable"])
 
+    def test_empty_policy_raises_clear_error(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "policy.json")
+            with open(path, "w", encoding="utf-8"):  # 0-byte file
+                pass
+            with self.assertRaises(PolicyError) as ctx:
+                load_policy(path)
+            self.assertIn("empty", str(ctx.exception))
+
+    def test_malformed_policy_raises_clear_error(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "policy.json")
+            with open(path, "w", encoding="utf-8") as fh:
+                fh.write("{not json")
+            with self.assertRaises(PolicyError) as ctx:
+                load_policy(path)
+            self.assertIn("invalid JSON", str(ctx.exception))
+
+    def test_non_object_policy_raises(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "policy.json")
+            with open(path, "w", encoding="utf-8") as fh:
+                fh.write(json.dumps(["not", "an", "object"]))
+            with self.assertRaises(PolicyError):
+                load_policy(path)
+
     def test_accept_and_reject_conflict_rejected(self):
         with tempfile.TemporaryDirectory() as d:
             path = os.path.join(d, "policy.json")
