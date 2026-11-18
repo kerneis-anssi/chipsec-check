@@ -11,7 +11,7 @@ from uefi_policy import cli
 DATA = os.path.join(os.path.dirname(__file__), "data")
 
 
-class DumpReviewOverwriteTest(unittest.TestCase):
+class CheckReviewOverwriteTest(unittest.TestCase):
     def setUp(self):
         self._tmp = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, self._tmp)
@@ -38,7 +38,7 @@ class DumpReviewOverwriteTest(unittest.TestCase):
         with open(self.review_path, "w", encoding="utf-8") as fh:
             fh.write(sentinel)
 
-        rc = cli.cmd_dump(self.args(review=self.review_path), stream=io.StringIO())
+        rc = cli.cmd_check(self.args(review=self.review_path), stream=io.StringIO())
 
         self.assertEqual(rc, 1)
         with open(self.review_path, encoding="utf-8") as fh:
@@ -50,14 +50,14 @@ class DumpReviewOverwriteTest(unittest.TestCase):
         with open(auto_path, "w", encoding="utf-8") as fh:
             fh.write(sentinel)
 
-        rc = cli.cmd_dump(self.args(review=None), stream=io.StringIO())
+        rc = cli.cmd_check(self.args(review=None), stream=io.StringIO())
 
         self.assertEqual(rc, 1)
         with open(auto_path, encoding="utf-8") as fh:
             self.assertEqual(fh.read(), sentinel)
 
     def test_writes_review_when_file_is_new(self):
-        rc = cli.cmd_dump(self.args(review=self.review_path), stream=io.StringIO())
+        rc = cli.cmd_check(self.args(review=self.review_path), stream=io.StringIO())
         self.assertEqual(rc, 0)
         self.assertTrue(os.path.exists(self.review_path))
 

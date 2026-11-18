@@ -1,4 +1,4 @@
-"""Command-line interface: ``dump`` (analyze) and ``merge``."""
+"""Command-line interface: ``check`` (analyze) and ``merge``."""
 
 from __future__ import annotations
 
@@ -24,7 +24,7 @@ def _read_source(path: str) -> str:
         return raw.decode("latin-1", errors="replace")
 
 
-def cmd_dump(args: argparse.Namespace, stream=None) -> int:
+def cmd_check(args: argparse.Namespace, stream=None) -> int:
     stream = stream or sys.stdout
     try:
         if os.path.isdir(args.input):
@@ -65,7 +65,7 @@ def cmd_dump(args: argparse.Namespace, stream=None) -> int:
         review_path = args.review
         if review_path == "auto" or review_path is None:
             review_path = args.input + ".review.json"
-        # Refuse to clobber an existing review file: re-running "dump" (instead
+        # Refuse to clobber an existing review file: re-running "check" (instead
         # of "merge") must not lose a prior, possibly-edited review.
         if os.path.exists(review_path):
             print(
@@ -101,15 +101,15 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="analyze_uefi_cfg.py", description=__doc__)
     sub = parser.add_subparsers(dest="command", required=False)
 
-    dump = sub.add_parser("dump", help="analyze a configuration dump against a policy")
-    dump.add_argument("input", help="path to a config dump file or a sysfs firmware-attributes directory")
-    dump.add_argument("--format", default="auto", choices=["auto"] + available(),
-                      help="input parser (default: auto-detect)")
-    dump.add_argument("--policy", required=True, help="policy JSON database")
-    dump.add_argument("--report", metavar="OUT", help="also write the report to this text file")
-    dump.add_argument("--review", nargs="?", const="auto", default=None,
-                      help="write review file here (default: <input>.review.json)")
-    dump.set_defaults(func=cmd_dump)
+    check = sub.add_parser("check", help="analyze a configuration dump against a policy")
+    check.add_argument("input", help="path to a config dump file or a sysfs firmware-attributes directory")
+    check.add_argument("--format", default="auto", choices=["auto"] + available(),
+                       help="input parser (default: auto-detect)")
+    check.add_argument("--policy", required=True, help="policy JSON database")
+    check.add_argument("--report", metavar="OUT", help="also write the report to this text file")
+    check.add_argument("--review", nargs="?", const="auto", default=None,
+                       help="write review file here (default: <input>.review.json)")
+    check.set_defaults(func=cmd_check)
 
     merge = sub.add_parser("merge", help="merge a reviewed file into the policy")
     merge.add_argument("--review", metavar="REVIEW", required=True, help="review JSON file")

@@ -222,17 +222,17 @@ simply not evaluated.
 ## 6. CLI design (single script, subcommands)
 
 ```
-analyze_uefi_cfg.py dump     <dumpfile> [--policy POL] [--report OUT] [--review REVIEW|auto]
+analyze_uefi_cfg.py check    <dumpfile> [--policy POL] [--report OUT] [--review REVIEW|auto]
 analyze_uefi_cfg.py merge    --review REVIEW [--policy POL] [--backup]
 ```
 
-`dump` is the default action:
+`check` is the default action:
 - `--input` source dump path (mandatory).
 - `--format`/auto-detect parser (`auto` is default; `sysfs-dir`,
   `fwupd-json`, `hp-setup`).
 - `--policy` path to policy JSON (required).
 - `--report` path for the text report copy (in addition to stdout).
-- `--review` path for the review file (auto-named if omitted: `<dump>.review.json`).
+- `--review` path for the review file (auto-named if omitted: `<input>.review.json`).
 
 `merge`:
 - `--review`, `--policy` (default same policy), `--backup` to keep pre-merge copy.

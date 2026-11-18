@@ -8,11 +8,11 @@ Full design notes: see `PLAN.md`. Progress: see `PROGRESS.md`.
 ## Overview
 
 ```
-dump   <dumpfile> --policy POLICY [--report OUT] [--review REVIEW]
+check  <dumpfile> --policy POLICY [--report OUT] [--review REVIEW]
 merge  --review REVIEW --policy POLICY [--wildcard-all] [--backup]
 ```
 
-1. `dump` parses the configuration dump, evaluates each option against the
+1. `check` parses the configuration dump, evaluates each option against the
    policy, prints a report to stdout (+ a text copy via `--report`), and writes
    a **review file** listing every option the policy doesn't fully cover yet.
 2. A human edits the review file, moving values into `accept`/`reject` (or set
@@ -26,7 +26,7 @@ merge  --review REVIEW --policy POLICY [--wildcard-all] [--backup]
 fwupdmgr get-bios-settings > bios-settings.json
 
 # Analyze against an existing policy
-python3 analyze_uefi_cfg.py dump bios-settings.json \
+python3 analyze_uefi_cfg.py check bios-settings.json \
     --policy policy.json --report report.txt --review review.json
 
 # Edit review.json: move values into "accept" / "reject",
