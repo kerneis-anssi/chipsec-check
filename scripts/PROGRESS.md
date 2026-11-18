@@ -232,6 +232,12 @@ support a manual review → merge workflow. See PLAN.md.
 - `assign()`/`exclusive()` are defensive: an out-of-range cursor is a no-op
   instead of an IndexError. Added regression tests; 94 tests pass.
 
+### Step 28 — fix slow ESC (no disk re-read on reset)
+- Confirmed ESC does not re-read the file: `reset()` restores purely from the
+  in-memory snapshot captured at load. The lag was the terminal's ESC escape-
+  sequence ambiguity delay. Added `curses.set_escdelay(0)` so a lone ESC
+  registers immediately. 94 tests pass.
+
 ### Step 18 — regression: --wildcard-all preserves existing decisions
 - Added an end-to-end regression test locking in that `check --review` followed
   by `policy update --wildcard-all` (with an unedited review) only wildcards

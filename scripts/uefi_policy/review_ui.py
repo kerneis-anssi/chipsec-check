@@ -37,6 +37,12 @@ def run(edits: List[ReviewEdit], path: str, stdscr, start_path: Optional[str] = 
         curses.curs_set(0)
     except Exception:
         pass
+    # A lone ESC key would otherwise wait for a possible escape-sequence prefix,
+    # making ESC laggy. Set the escape disambiguation delay to zero.
+    try:
+        curses.set_escdelay(0)
+    except Exception:
+        pass
     # Only options with a decision to make are navigable; the full *edits* list
     # (including wildcards / empty rows) is what gets persisted.
     acts = [i for i, e in enumerate(edits) if e.is_reviewable]
