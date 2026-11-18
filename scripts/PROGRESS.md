@@ -180,6 +180,14 @@ support a manual review → merge workflow. See PLAN.md.
   subcommand. Tests in `tests/test_cli.py` cover the three modes, ordering, and
   CLI dispatch. Docs updated in README/PLAN.
 
+### Step 17 — policy show --json
+- Added `--json OUT` to `fwsetup policy show`: it writes the policy itself as a
+  JSON file (version 1 format), with options ordered per `--show-wildcards` (so
+  `no` omits wildcard-only entries).
+- Refactored `reports.py` to expose `ordered_entries()`, shared by `format_policy`
+  and the JSON output. Tests cover write-on-show, ordering, and the
+  `no` mode omission. Docs updated in README/PLAN.
+
 ### Step 16 — rename the CLI tool to fwsetup
 - Renamed the entry-point script `analyze_uefi_cfg.py` → `fwsetup`, and the
   `argparse` `prog` is now `fwsetup`. Updated all command invocations in the

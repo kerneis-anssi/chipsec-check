@@ -3,14 +3,16 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import sys
 from typing import List, Optional
 
 from uefi_policy.analyze import evaluate, gather_review
 from uefi_policy.parsers import available, create, detect
-from uefi_policy.policy import Policy, PolicyError, load_policy, load_review, merge_review, save_policy, save_review
-from uefi_policy.reports import build_report, format_policy, write_report
+from uefi_policy.policy import (POLICY_VERSION, Policy, PolicyError, load_policy,
+                                load_review, merge_review, save_policy, save_review)
+from uefi_policy.reports import build_report, format_policy, ordered_entries, write_report
 
 
 def _read_source(path: str) -> str:
@@ -105,6 +107,16 @@ def cmd_show(args: argparse.Namespace, stream=None) -> int:
     except PolicyError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1
+    if args.json:
+        data = {
+            "version": POLICY_VERSION,
+            "policy": {key: entry.to_dict()
+                       for key, entry in ordered_entries(policy, args.show_wildcards)},
+        }
+        with open(args.json, "w", encoding="utf-8") as fh:
+            json.dump(data, fh, indent=2, ensure_ascii=False)
+            fh.write("\n")
+        print(f"policy JSON written to {args.json}")
     text = format_policy(policy, args.show_wildcards)
     stream.write(text + ("\n" if text else ""))
     return 0
@@ -140,6 +152,9 @@ def build_parser() -> argparse.ArgumentParser:
                       choices=("last", "inline", "no"), default="last",
                       help="how to display wildcard-only entries: last (default), "
                            "inline, or no (omit them)")
+    show.add_argument("--json", metavar="OUT",
+                      help="also write the policy as JSON, ordered per "
+                           "--show-wildcards")
     show.set_defaults(func=cmd_show)
 
     return parser

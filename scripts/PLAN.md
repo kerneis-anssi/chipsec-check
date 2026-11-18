@@ -224,7 +224,7 @@ simply not evaluated.
 ```
 fwsetup check         <dumpfile> [--policy POL] [--report OUT] [--review REVIEW|auto]
 fwsetup policy merge  --review REVIEW [--policy POL] [--backup]
-fwsetup policy show   --policy POL [--show-wildcards last|inline|no]
+fwsetup policy show   --policy POL [--show-wildcards last|inline|no] [--json OUT]
 ```
 
 `check` is the default action:
@@ -252,6 +252,8 @@ fwsetup policy show   --policy POL [--show-wildcards last|inline|no]
   - `no` — omit wildcard-only entries entirely.
 - Each option is printed as a block showing its `accept` and `reject` values (or
   `wildcard: true`).
+- `--json OUT` also writes the *policy itself* as JSON (version 1 format), with
+  options ordered per `--show-wildcards` (so `no` omits wildcard-only entries).
 
 ## 7. Suggested file layout
 

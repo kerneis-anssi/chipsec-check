@@ -46,26 +46,34 @@ def write_report(report: str, stream: IO[str]) -> None:
     stream.write(report + "\n")
 
 
+def ordered_entries(policy: Policy, show_wildcards: str = "last") -> List[Tuple[str, PolicyEntry]]:
+    """Return the policy entries ordered per the ``show_wildcards`` mode.
+
+    Base order is by key. ``show_wildcards``:
+      - ``last`` (default): group wildcard-only entries at the end, sorted by
+        key among themselves; non-wildcard entries lead, sorted by key.
+      - ``inline``: keep everything sorted by key together.
+      - ``no``: drop wildcard-only entries entirely.
+    """
+    entries: List[Tuple[str, PolicyEntry]] = sorted(policy.entries.items())
+    if show_wildcards == "no":
+        return [kv for kv in entries if not kv[1].wildcard]
+    if show_wildcards == "last":
+        normal = [kv for kv in entries if not kv[1].wildcard]
+        wildcards = [kv for kv in entries if kv[1].wildcard]
+        return normal + wildcards
+    return entries  # "inline"
+
+
 def format_policy(policy: Policy, show_wildcards: str = "last") -> str:
     """Pretty-print a policy database for terminal display.
 
     For each key, show its accepted and rejected values (or ``wildcard``).
-    ``show_wildcards`` controls how wildcard-only entries are ordered:
-      - ``last`` (default): group wildcard entries at the end, sorted by key
-        among themselves; non-wildcard entries lead, sorted by key.
-      - ``inline``: keep everything sorted by key together.
-      - ``no``: omit wildcard entries entirely.
+    ``show_wildcards`` controls how wildcard-only entries are ordered; see
+    :func:`ordered_entries`.
     """
-    entries: List[Tuple[str, PolicyEntry]] = sorted(policy.entries.items())
-    if show_wildcards == "no":
-        entries = [kv for kv in entries if not kv[1].wildcard]
-    elif show_wildcards == "last":
-        normal = [kv for kv in entries if not kv[1].wildcard]
-        wildcards = [kv for kv in entries if kv[1].wildcard]
-        entries = normal + wildcards
-    # "inline" (or anything else) leaves entries sorted by key as-is.
-
-    blocks = ["\n".join(_policy_entry_lines(key, entry)) for key, entry in entries]
+    blocks = ["\n".join(_policy_entry_lines(key, entry))
+              for key, entry in ordered_entries(policy, show_wildcards)]
     return "\n\n".join(blocks)
 
 

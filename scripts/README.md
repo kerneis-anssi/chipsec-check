@@ -37,11 +37,14 @@ python3 fwsetup check bios-settings.json \
 python3 fwsetup policy merge --review review.json --policy policy.json --backup
 
 # Pretty-print the policy (grouped values per option; wildcards last)
-python3 fwsetup policy show --policy policy.json
+fwsetup policy show --policy policy.json
 
 # Omit wildcard-only entries, or keep them inline, respectively:
-python3 fwsetup policy show --policy policy.json --show-wildcards no
-python3 fwsetup policy show --policy policy.json --show-wildcards inline
+fwsetup policy show --policy policy.json --show-wildcards no
+fwsetup policy show --policy policy.json --show-wildcards inline
+
+# Also write the policy as JSON (ordered per --show-wildcards):
+fwsetup policy show --policy policy.json --json out.json
 ```
 
 ## Input formats

@@ -146,9 +146,57 @@ class PolicyShowTest(unittest.TestCase):
             path = fh.name
         self.addCleanup(os.unlink, path)
         out = io.StringIO()
-        rc = cli.cmd_show(Namespace(policy=path, show_wildcards="no"), stream=out)
+        rc = cli.cmd_show(
+            Namespace(policy=path, show_wildcards="no", json=None), stream=out)
         self.assertEqual(rc, 0)
         self.assertIn("hp-x/Secure Boot:", out.getvalue())
+
+    def test_show_json_writes_ordered_policy_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            policy_path = os.path.join(tmp, "policy.json")
+            with open(policy_path, "w", encoding="utf-8") as fh:
+                json.dump({"version": 1, "policy": {
+                    "hp-x/Audio": {"reject": ["Muted"]},
+                    "hp-x/Secure Boot": {"accept": ["Enable"], "reject": ["Disable"]},
+                    "hp-x/Bluetooth": {"wildcard": True},
+                    "hp-x/TPM": {"wildcard": True},
+                }}, fh)
+            out_path = os.path.join(tmp, "out.json")
+            out = io.StringIO()
+            rc = cli.cmd_show(
+                Namespace(policy=policy_path, show_wildcards="last", json=out_path),
+                stream=out,
+            )
+            self.assertEqual(rc, 0)
+            self.assertTrue(os.path.exists(out_path))
+            with open(out_path, encoding="utf-8") as fh:
+                data = json.load(fh)
+            self.assertEqual(data["version"], 1)
+            keys = list(data["policy"].keys())
+            self.assertEqual(keys, ["hp-x/Audio", "hp-x/Secure Boot",
+                                    "hp-x/Bluetooth", "hp-x/TPM"])
+            # Values carried over from the policy.
+            self.assertEqual(data["policy"]["hp-x/Secure Boot"]["accept"],
+                             ["Enable"])
+            self.assertTrue(data["policy"]["hp-x/Bluetooth"]["wildcard"])
+
+    def test_show_json_no_omits_wildcards(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            policy_path = os.path.join(tmp, "policy.json")
+            with open(policy_path, "w", encoding="utf-8") as fh:
+                json.dump({"version": 1, "policy": {
+                    "hp-x/Secure Boot": {"accept": ["Enable"]},
+                    "hp-x/TPM": {"wildcard": True},
+                }}, fh)
+            out_path = os.path.join(tmp, "out.json")
+            rc = cli.cmd_show(
+                Namespace(policy=policy_path, show_wildcards="no", json=out_path),
+                stream=io.StringIO(),
+            )
+            self.assertEqual(rc, 0)
+            with open(out_path, encoding="utf-8") as fh:
+                data = json.load(fh)
+            self.assertEqual(list(data["policy"].keys()), ["hp-x/Secure Boot"])
 
 
 if __name__ == "__main__":
