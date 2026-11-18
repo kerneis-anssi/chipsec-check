@@ -58,11 +58,6 @@ def cmd_check(args: argparse.Namespace, stream=None) -> int:
     report = build_report(results)
     write_report(report, stream)
 
-    if args.report:
-        with open(args.report, "w", encoding="utf-8") as fh:
-            fh.write(report + "\n")
-        print(f"report written to {args.report}")
-
     review = gather_review(results, policy)
     if review:
         review_path = args.review
@@ -134,7 +129,6 @@ def build_parser() -> argparse.ArgumentParser:
                        help="policy JSON database; may be a file, a comma-separated "
                             "list, or a directory (loads all *.json, non-recursive); "
                             "repeatable")
-    check.add_argument("--report", metavar="OUT", help="also write the report to this text file")
     check.add_argument("--review", nargs="?", const="auto", default=None,
                        help="write review file here (default: <input>.review.json)")
     check.set_defaults(func=cmd_check)

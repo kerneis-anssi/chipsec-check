@@ -28,7 +28,6 @@ class CheckReviewOverwriteTest(unittest.TestCase):
             input=self.input_path,
             format="auto",
             policy=[self.policy_path],
-            report=None,
             review=review,
         )
         base.update(kw)
@@ -243,7 +242,7 @@ class WildcardAllPreservesDecisionsTest(unittest.TestCase):
     def test_wildcard_all_preserves_accept_reject(self):
         # Step 1: check produces a review carrying the existing accept/reject.
         rc = cli.cmd_check(Namespace(input=self.dump_path, format="auto",
-                                     policy=[self.policy_path], report=None,
+                                     policy=[self.policy_path],
                                      review=self.review_path),
                            stream=io.StringIO())
         self.assertEqual(rc, 0)

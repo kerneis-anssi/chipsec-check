@@ -8,14 +8,15 @@ Full design notes: see `PLAN.md`. Progress: see `PROGRESS.md`.
 ## Overview
 
 ```
-check         <dumpfile> --policy POLICY [--report OUT] [--review REVIEW]
+check         <dumpfile> --policy POLICY [--review REVIEW]
 policy merge  --review REVIEW --policy POLICY [--wildcard-all] [--backup]
 policy show   --policy POLICY [--show-wildcards last|inline|no]
 ```
 
 1. `check` parses the configuration dump, evaluates each option against the
-   policy, prints a report to stdout (+ a text copy via `--report`), and writes
+   policy, prints a report to stdout, and writes
    a **review file** listing every option the policy doesn't fully cover yet.
+   (Pipe to `tee report.txt` to save the stdout report.)
 2. A human edits the review file, moving values into `accept`/`reject` (or set
    `wildcard: true`) for each option.
 3. `policy merge` applies those decisions to the policy database.
@@ -34,7 +35,7 @@ fwupdmgr get-bios-settings > bios-settings.json
 
 # Analyze against an existing policy
 python3 fwsetup check bios-settings.json \
-    --policy policy.json --report report.txt --review review.json
+    --policy policy.json --review review.json
 
 # Edit review.json: move values into "accept" / "reject",
 # or set "wildcard": true to accept any value for that option.

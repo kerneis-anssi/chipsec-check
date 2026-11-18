@@ -218,6 +218,11 @@ support a manual review → merge workflow. See PLAN.md.
   and the `--json` output. Added a shared `_drop_vendor()` helper and a table
   test. 63 tests pass.
 
+### Step 22 — drop the --report flag
+- Removed `check`'s `--report` option: the report is identical to stdout, so
+  `fwsetup check ... | tee report.txt` covers saving it. Cleaner CLI; updated
+  tests and docs. 63 tests pass.
+
 ### Step 16 — rename the CLI tool to fwsetup
 - Renamed the entry-point script `analyze_uefi_cfg.py` → `fwsetup`, and the
   `argparse` `prog` is now `fwsetup`. Updated all command invocations in the
