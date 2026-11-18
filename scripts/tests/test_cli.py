@@ -199,5 +199,75 @@ class PolicyShowTest(unittest.TestCase):
             self.assertEqual(list(data["policy"].keys()), ["hp-x/Secure Boot"])
 
 
+class WildcardAllPreservesDecisionsTest(unittest.TestCase):
+    """check --review then policy merge --wildcard-all (unedited) must not
+    lose existing accept/reject decisions -- only undecided options become
+    wildcards."""
+
+    DUMP = {
+        "BiosSettings": [
+            {
+                "Name": "Audio",
+                "Filename": "/sys/class/firmware-attributes/hp-x/attributes/Audio",
+                "BiosSettingCurrentValue": "On",
+                "BiosSettingType": 1,
+                "BiosSettingPossibleValues": ["On", "Muted", "Off"],
+            },
+            {
+                "Name": "Network",
+                "Filename": "/sys/class/firmware-attributes/hp-x/attributes/Network",
+                "BiosSettingCurrentValue": "On",
+                "BiosSettingType": 1,
+                "BiosSettingPossibleValues": ["On", "Off"],
+            },
+        ]
+    }
+
+    def setUp(self):
+        self._tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self._tmp)
+        self.dump_path = os.path.join(self._tmp, "dump.json")
+        self.policy_path = os.path.join(self._tmp, "policy.json")
+        self.review_path = os.path.join(self._tmp, "review.json")
+        with open(self.dump_path, "w", encoding="utf-8") as fh:
+            json.dump(self.DUMP, fh)
+        # Audio already has accept/reject; "Off" is unknown so it needs review.
+        with open(self.policy_path, "w", encoding="utf-8") as fh:
+            json.dump({
+                "version": 1,
+                "policy": {
+                    "hp-x/Audio": {"accept": ["On"], "reject": ["Muted"]},
+                },
+            }, fh)
+
+    def test_wildcard_all_preserves_accept_reject(self):
+        # Step 1: check produces a review carrying the existing accept/reject.
+        rc = cli.cmd_check(Namespace(input=self.dump_path, format="auto",
+                                     policy=self.policy_path, report=None,
+                                     review=self.review_path),
+                           stream=io.StringIO())
+        self.assertEqual(rc, 0)
+        with open(self.review_path, encoding="utf-8") as fh:
+            review = json.load(fh)
+        self.assertEqual(review["review"]["hp-x/Audio"]["accept"], ["On"])
+        self.assertEqual(review["review"]["hp-x/Audio"]["reject"], ["Muted"])
+
+        # Step 2: merge --wildcard-all without editing the review.
+        rc = cli.cmd_merge(Namespace(review=self.review_path,
+                                     policy=self.policy_path,
+                                     wildcard_all=True, backup=False))
+        self.assertEqual(rc, 0)
+
+        # Audio's existing accept/reject are preserved (not turned into a
+        # wildcard), even though its unknown "Off" value triggered review.
+        with open(self.policy_path, encoding="utf-8") as fh:
+            policy = json.load(fh)
+        self.assertEqual(policy["policy"]["hp-x/Audio"]["accept"], ["On"])
+        self.assertEqual(policy["policy"]["hp-x/Audio"]["reject"], ["Muted"])
+        self.assertNotIn("wildcard", policy["policy"]["hp-x/Audio"])
+        # The undecided option not in the policy became a wildcard.
+        self.assertTrue(policy["policy"]["hp-x/Network"]["wildcard"])
+
+
 if __name__ == "__main__":
     unittest.main()

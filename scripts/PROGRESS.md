@@ -188,6 +188,12 @@ support a manual review → merge workflow. See PLAN.md.
   and the JSON output. Tests cover write-on-show, ordering, and the
   `no` mode omission. Docs updated in README/PLAN.
 
+### Step 18 — regression: --wildcard-all preserves existing decisions
+- Added an end-to-end regression test locking in that `check --review` followed
+  by `policy merge --wildcard-all` (with an unedited review) only wildcards
+  genuinely undecided options: existing non-empty `accept`/`reject` entries are
+  preserved rather than turned into wildcards. 56 tests pass.
+
 ### Step 16 — rename the CLI tool to fwsetup
 - Renamed the entry-point script `analyze_uefi_cfg.py` → `fwsetup`, and the
   `argparse` `prog` is now `fwsetup`. Updated all command invocations in the
