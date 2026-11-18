@@ -5,6 +5,7 @@ import unittest
 from uefi_policy.analyze import evaluate, gather_review
 from uefi_policy.model import Option, Result, Status
 from uefi_policy.policy import Policy, PolicyEntry
+from uefi_policy.reports import build_report
 
 
 def mk_option(path, cur, possible=None, otype="enumeration"):
@@ -32,6 +33,26 @@ class AnalyzeTest(unittest.TestCase):
         policy = Policy(entries={"hp-x/Foo": PolicyEntry(reject=["Disable"])})
         r = evaluate([mk_option("hp-x/Foo", "Disable", ["Disable", "Enable"])], policy)[0]
         self.assertIn(Status.VIOLATION, r.statuses)
+
+    def test_report_lists_violations_at_end(self):
+        policy = Policy(entries={
+            "hp-x/Bad": PolicyEntry(reject=["Disable"]),
+            "hp-x/Good": PolicyEntry(accept=["Enable"]),
+        })
+        results = evaluate([
+            mk_option("hp-x/Bad", "Disable", ["Disable", "Enable"]),
+            mk_option("hp-x/Good", "Enable", ["Disable", "Enable"]),
+        ], policy)
+        report = build_report(results)
+        # Violations section comes after the Summary counts.
+        self.assertLess(report.index("Summary:"), report.index("Violations:"))
+        self.assertIn("Bad: Disable", report)
+        self.assertNotIn("hp-x/Good", report.split("Violations:")[1])
+
+    def test_no_violations_omits_section(self):
+        policy = Policy(entries={"hp-x/Good": PolicyEntry(accept=["Enable"])})
+        results = evaluate([mk_option("hp-x/Good", "Enable", ["Enable"])], policy)
+        self.assertNotIn("Violations:", build_report(results))
 
     def test_unknown_value_review(self):
         # Only "Enable" accepted; "Disable" unreviewed -> UNKNOWN_VALUE + current OK.

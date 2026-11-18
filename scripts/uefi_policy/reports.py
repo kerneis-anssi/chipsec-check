@@ -39,6 +39,16 @@ def build_report(results: Sequence[Result]) -> str:
     for status in _ORDER:
         if status in by_status:
             lines.append(f"  {status.value:<16} {by_status[status]}")
+
+    violations = [r for r in results if Status.VIOLATION in r.statuses]
+    if violations:
+        lines.append("")
+        lines.append("Violations:")
+        for r in violations:
+            current = (r.option.current_value or "").replace("\n", "\\n")
+            # Drop the vendor prefix (first path segment) for readability.
+            key = r.option.path.split("/", 1)[-1]
+            lines.append(f"  {key}: {current}")
     return "\n".join(lines)
 
 

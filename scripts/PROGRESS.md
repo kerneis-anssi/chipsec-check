@@ -204,6 +204,12 @@ support a manual review → merge workflow. See PLAN.md.
   (merge, comma/multi-flag, directory non-recursive, conflict error). 60 tests
   pass.
 
+### Step 20 — violations summary in the check report
+- `build_report()` now appends a `Violations:` section after the `Summary:`
+  counts, listing each option carrying a `VIOLATION` status (one path per line).
+  The section is omitted when there are no violations. Tests added;
+  62 tests pass.
+
 ### Step 16 — rename the CLI tool to fwsetup
 - Renamed the entry-point script `analyze_uefi_cfg.py` → `fwsetup`, and the
   `argparse` `prog` is now `fwsetup`. Updated all command invocations in the
