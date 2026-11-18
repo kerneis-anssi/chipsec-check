@@ -222,9 +222,9 @@ simply not evaluated.
 ## 6. CLI design (single script, subcommands)
 
 ```
-analyze_uefi_cfg.py check         <dumpfile> [--policy POL] [--report OUT] [--review REVIEW|auto]
-analyze_uefi_cfg.py policy merge  --review REVIEW [--policy POL] [--backup]
-analyze_uefi_cfg.py policy show   --policy POL [--show-wildcards last|inline|no]
+fwsetup check         <dumpfile> [--policy POL] [--report OUT] [--review REVIEW|auto]
+fwsetup policy merge  --review REVIEW [--policy POL] [--backup]
+fwsetup policy show   --policy POL [--show-wildcards last|inline|no]
 ```
 
 `check` is the default action:
@@ -269,7 +269,7 @@ scripts/
     analyze.py        # evaluation logic
     reports.py        # stdout + file report formatting
     cli.py            # argparse dispatch
-  analyze_uefi_cfg.py # thin entry point -> uefi_policy.cli.main()
+  fwsetup # thin entry point -> uefi_policy.cli.main()
   tests/
     test_parsers.py
     test_analyze.py

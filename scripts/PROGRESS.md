@@ -28,7 +28,7 @@ support a manual review → merge workflow. See PLAN.md.
   options able to carry multiple statuses (e.g. VIOLATION + UNKNOWN_VALUE).
   `gather_review()` produces the review entries for unknown options/values.
 - `uefi_policy/reports.py` — `build_report()` (readable table + summary).
-- `uefi_policy/cli.py` + `analyze_uefi_cfg.py` — subcommands:
+- `uefi_policy/cli.py` + `fwsetup` — subcommands:
   - `dump <dumpfile> --policy P [--report OUT] [--review REVIEW]`
   - `merge --review R --policy P [--wildcard-all] [--backup]`
   - A missing policy is treated as empty during merge (allows building a DB
@@ -162,15 +162,15 @@ support a manual review → merge workflow. See PLAN.md.
   file. 48 tests pass.
 
 ### Step 14 — reorganize the CLI verbs
-- Renamed the analyze verb `dump` → `check` (`analyze_uefi_cfg.py check`).
-- Moved `merge` under a new **`policy`** subcommand: `analyze_uefi_cfg.py
+- Renamed the analyze verb `dump` → `check` (`fwsetup check`).
+- Moved `merge` under a new **`policy`** subcommand: `fwsetup
   policy merge …`. The `policy` subcommand is deliberately structured to host
   future `policy show` and `policy review` verbs later.
 - Updated the CLI parser, handlers, tests (incl. a new `policy merge` dispatch
   test) and the README/PLAN usage docs.
 
 ### Step 15 — policy show
-- Added `analyze_uefi_cfg.py policy show --policy P [--show-wildcards …]`, a
+- Added `fwsetup policy show --policy P [--show-wildcards …]`, a
   pretty-printed terminal view of the policy: each key shows its `accept` and
   `reject` values (or `wildcard: true`).
 - `--show-wildcards` (default `last`) controls wildcard-only entries: `last`
@@ -179,6 +179,11 @@ support a manual review → merge workflow. See PLAN.md.
 - `format_policy()` in `reports.py`; `cmd_show` wired into the `policy`
   subcommand. Tests in `tests/test_cli.py` cover the three modes, ordering, and
   CLI dispatch. Docs updated in README/PLAN.
+
+### Step 16 — rename the CLI tool to fwsetup
+- Renamed the entry-point script `analyze_uefi_cfg.py` → `fwsetup`, and the
+  `argparse` `prog` is now `fwsetup`. Updated all command invocations in the
+  README/PLAN/PROGRESS docs accordingly.
 
 ### Step 12 — allow accept+reject together in one option
 - Decided to flag `UNKNOWN_VALUE` for the full enumerable `possible_values` set

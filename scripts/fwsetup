@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""UEFI configuration policy analyzer - thin entry point."""
+"""fwsetup - UEFI configuration policy analyzer - thin entry point."""
 
 import sys
 

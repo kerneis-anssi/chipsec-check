@@ -27,21 +27,21 @@ policy show   --policy POLICY [--show-wildcards last|inline|no]
 fwupdmgr get-bios-settings > bios-settings.json
 
 # Analyze against an existing policy
-python3 analyze_uefi_cfg.py check bios-settings.json \
+python3 fwsetup check bios-settings.json \
     --policy policy.json --report report.txt --review review.json
 
 # Edit review.json: move values into "accept" / "reject",
 # or set "wildcard": true to accept any value for that option.
 
 # Apply the reviewed decisions to the policy
-python3 analyze_uefi_cfg.py policy merge --review review.json --policy policy.json --backup
+python3 fwsetup policy merge --review review.json --policy policy.json --backup
 
 # Pretty-print the policy (grouped values per option; wildcards last)
-python3 analyze_uefi_cfg.py policy show --policy policy.json
+python3 fwsetup policy show --policy policy.json
 
 # Omit wildcard-only entries, or keep them inline, respectively:
-python3 analyze_uefi_cfg.py policy show --policy policy.json --show-wildcards no
-python3 analyze_uefi_cfg.py policy show --policy policy.json --show-wildcards inline
+python3 fwsetup policy show --policy policy.json --show-wildcards no
+python3 fwsetup policy show --policy policy.json --show-wildcards inline
 ```
 
 ## Input formats

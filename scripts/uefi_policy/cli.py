@@ -1,4 +1,4 @@
-"""Command-line interface: ``check`` (analyze) and ``policy`` (merge; later show/review)."""
+"""Command-line interface: ``check`` (analyze) and ``policy`` (merge, show; later review)."""
 
 from __future__ import annotations
 
@@ -110,7 +110,7 @@ def cmd_show(args: argparse.Namespace, stream=None) -> int:
     return 0
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="analyze_uefi_cfg.py", description=__doc__)
+    parser = argparse.ArgumentParser(prog="fwsetup", description=__doc__)
     sub = parser.add_subparsers(dest="command", required=False)
 
     check = sub.add_parser("check", help="analyze a configuration dump against a policy")
