@@ -29,6 +29,7 @@ class ReviewEdit:
     _reject: set = field(default_factory=set)
     _unknown: set = field(default_factory=set)
     cursor: int = 0
+    _wildcard: bool = False
     _orig: Optional[ReviewOption] = field(default=None, repr=False)
 
     @classmethod
@@ -39,6 +40,7 @@ class ReviewEdit:
             _accept=set(opt.accept),
             _reject=set(opt.reject),
             _unknown=set(opt.unknown),
+            _wildcard=opt.wildcard,
             _orig=opt,
         )
         e._init_cursor()
@@ -46,7 +48,11 @@ class ReviewEdit:
 
     @property
     def is_wildcard(self) -> bool:
-        return bool(self._orig is not None and self._orig.wildcard)
+        return self._wildcard
+
+    @property
+    def is_reviewable(self) -> bool:
+        return not self.is_wildcard and bool(self.values())
 
     def _init_cursor(self) -> None:
         if self.current is not None:
@@ -114,6 +120,7 @@ class ReviewEdit:
         self._reject = set(self._orig.reject)
         self._unknown = set(self._orig.unknown)
         self.current = self._orig.current
+        self._wildcard = self._orig.wildcard
         self._init_cursor()
 
     # -- serialization -----------------------------------------------------
@@ -125,4 +132,5 @@ class ReviewEdit:
             reject=sorted(self._reject),
             unknown=sorted(self._unknown),
             current=self.current,
+            wildcard=self._wildcard,
         )

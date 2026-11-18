@@ -17,55 +17,95 @@ _REGION = ("n/p: option   j/k/\u2191\u2193: value   +: accept  -: reject  "
            "space: undecided  *: exclusive  ESC: reset  q: save & quit  x: discard")
 
 
-def run(edits: List[ReviewEdit], path: str, stdscr) -> bool:
+def run(edits: List[ReviewEdit], path: str, stdscr, start_path: Optional[str] = None) -> bool:
     """Interactive curses loop over *edits*. Returns True if saved, else False.
 
     *stdscr* is a curses window object (or a compatible fake in tests). Keys:
-      n/p (or Left/Right)      - previous/next option
+      n/p (or Left/Right)      - next/previous option (p on the first wraps to
+                                 the last; n on the last prompts to save & quit)
       j/k (or Down/Up)         - move highlight within the value list
       + / - / space            - accept / reject / undecide highlighted value
       *                        - accept highlighted exclusively (reject the rest)
       ESC                      - reset the current option to its on-disk state
       q                        - save changes and quit
       x                        - discard changes and quit (after confirmation)
+
+    Only the option's ``progress`` marker is written on discard (its position);
+    the review decisions are saved only on ``q`` / the save-confirm.
     """
     try:
         curses.curs_set(0)
     except Exception:
         pass
-    _focus(edits[0])
+    # Only options with a decision to make are navigable; the full *edits* list
+    # (including wildcards / empty rows) is what gets persisted.
+    acts = [i for i, e in enumerate(edits) if e.is_reviewable]
+    if not acts:
+        return True  # nothing to decide
+    _focus(edits[acts[0]])
     target = 0
+    if start_path is not None:
+        for pos, i in enumerate(acts):
+            if edits[i].path == start_path:
+                target = pos
+                break
+    count = len(acts)
+
     while True:
-        _render(stdscr, edits, target, None)
+        _render(stdscr, edits, acts[target], count, None)
         key = stdscr.getch()
 
         if key == ord("q"):
-            save_review([e.to_review() for e in edits], path)
+            _save_decisions(edits, acts[target], path)
             _flash(stdscr, f"Saved {len(edits)} options to {path}")
             stdscr.getch()
             return True
         if key == ord("x"):
             if _confirm(stdscr, "Discard changes and quit? (y/N)"):
+                _save_progress_only(edits, acts[target], path)
                 return False
             continue
         if key in (ord("n"), curses.KEY_RIGHT):
-            target = min(target + 1, len(edits) - 1)
+            if target == count - 1:
+                if _confirm(stdscr, "This is the last option. Save and quit? (y/N)"):
+                    _save_decisions(edits, acts[target], path)
+                    _flash(stdscr, f"Saved {len(edits)} options to {path}")
+                    stdscr.getch()
+                    return True
+                target = 0  # "no": wrap back to the first option
+            else:
+                target += 1
         elif key in (ord("p"), curses.KEY_LEFT):
-            target = max(target - 1, 0)
+            target = count - 1 if target == 0 else target - 1  # p wraps to last
         elif key in (curses.KEY_DOWN, ord("j")):
-            edits[target].move_down()
+            edits[acts[target]].move_down()
         elif key in (curses.KEY_UP, ord("k")):
-            edits[target].move_up()
+            edits[acts[target]].move_up()
         elif key == ord("+"):
-            edits[target].assign(ACCEPT)
+            edits[acts[target]].assign(ACCEPT)
         elif key == ord("-"):
-            edits[target].assign(REJECT)
+            edits[acts[target]].assign(REJECT)
         elif key == ord(" "):
-            edits[target].assign(UNKNOWN)
+            edits[acts[target]].assign(UNKNOWN)
         elif key == ord("*"):
-            edits[target].exclusive()
+            edits[acts[target]].exclusive()
         elif key == 27:  # ESC
-            edits[target].reset()
+            edits[acts[target]].reset()
+
+
+def _save_decisions(edits: List[ReviewEdit], target_index: int, path: str) -> None:
+    """Persist all edit state and the current option as the progress marker."""
+    save_review([e.to_review() for e in edits], path, progress=edits[target_index].path)
+
+
+def _save_progress_only(edits: List[ReviewEdit], target_index: int, path: str) -> None:
+    """Persist only the progress marker, keeping the on-disk review decisions
+    unchanged (used on discard)."""
+    from uefi_policy.policy import load_review
+
+    fresh = load_review(path)
+    save_review(fresh, path, progress=edits[target_index].path)
+
 
 
 def _focus(edit: ReviewEdit) -> None:
@@ -74,12 +114,12 @@ def _focus(edit: ReviewEdit) -> None:
         edit.cursor = max(0, edit._count() - 1)
 
 
-def _render(stdscr, edits: List[ReviewEdit], target: int, msg: Optional[str]) -> None:
+def _render(stdscr, edits: List[ReviewEdit], target: int, count: int, msg: Optional[str]) -> None:
     edit = edits[target]
     h, w = stdscr.getmaxyx()
     stdscr.erase()
 
-    title = f"Reviewing {edit.path}   [{target + 1}/{len(edits)}]"
+    title = f"Reviewing {edit.path}   [{target + 1}/{count}]"
     _write(stdscr, 0, 0, title, w)
     if edit.current is not None:
         _write(stdscr, 1, 0, f"current: {edit.current}", w)

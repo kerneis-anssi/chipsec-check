@@ -211,6 +211,19 @@ support a manual review → merge workflow. See PLAN.md.
   loop is driven by a fake screen in tests (`test_review_ui.py`). CLI + README/
   PLAN docs updated. 82 tests pass.
 
+### Step 26 — policy review: progress & wrapping
+- The review file now carries a `progress` key (`policy.review_progress` /
+  `save_review(..., progress=...)`) recording the last-visited option. On start,
+  `policy review` jumps there (defaulting to the first option); `q` (save) and
+  `x` (discard) both update it.
+- `n`/`p` now wrap (p on the first cycles to the last; n on the last prompts to
+  save & quit, "no" wraps to the first). The header shows the current position
+  `[i/N]`.
+- ReviewEdit preserves wildcard rows and skips non-reviewable (wildcard/empty)
+  options during navigation while still persisting them on save.
+- Tests cover progress write/jump, wrap-around, save-confirm on last, and
+  wildcard preservation. 91 tests pass.
+
 ### Step 18 — regression: --wildcard-all preserves existing decisions
 - Added an end-to-end regression test locking in that `check --review` followed
   by `policy update --wildcard-all` (with an unedited review) only wildcards

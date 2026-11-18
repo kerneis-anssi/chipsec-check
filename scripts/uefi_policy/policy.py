@@ -229,6 +229,21 @@ def load_review(path: str) -> List[ReviewOption]:
     return [_validate_review_option(p, d) for p, d in sorted(options.items())]
 
 
+def review_progress(path: str) -> Optional[str]:
+    """Return the review file's ``progress`` marker (the last option visited).
+
+    ``None`` when the file has no such key. Used by ``policy review`` to resume
+    where the user left off.
+    """
+    if not os.path.exists(path):
+        return None
+    data = _load_json(path)
+    if not isinstance(data, dict):
+        return None
+    value = data.get("progress")
+    return value if isinstance(value, str) else None
+
+
 def _format_review(data: dict) -> str:
     """Serialize the review DB to JSON, expanding empty arrays.
 
@@ -252,11 +267,18 @@ def _format_review(data: dict) -> str:
     return "\n".join(out)
 
 
-def save_review(options: List[ReviewOption], path: str) -> None:
-    data = {
-        "version": REVIEW_VERSION,
-        "review": {o.path: o.to_dict() for o in options},
-    }
+def save_review(options: List[ReviewOption], path: str, progress: Optional[str] = None) -> None:
+    if progress is None:
+        data: dict = {
+            "version": REVIEW_VERSION,
+            "review": {o.path: o.to_dict() for o in options},
+        }
+    else:
+        data = {
+            "version": REVIEW_VERSION,
+            "progress": progress,
+            "review": {o.path: o.to_dict() for o in options},
+        }
     with open(path, "w", encoding="utf-8") as fh:
         fh.write(_format_review(data))
         fh.write("\n")

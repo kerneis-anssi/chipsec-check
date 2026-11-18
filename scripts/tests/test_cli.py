@@ -98,15 +98,21 @@ class PolicyReviewTest(unittest.TestCase):
             rc = cli.cmd_review(Namespace(review=path))
             self.assertEqual(rc, 0)
 
-    def test_wildcard_and_empty_options_filtered_before_tui(self):
+    def test_review_progress_read(self):
+        from uefi_policy.policy import review_progress
         with tempfile.TemporaryDirectory() as tmp:
             path = os.path.join(tmp, "review.json")
-            # golden: a wildcarded entry and an entry with no values are skipped;
-            # a normal entry remains. cmd_review with the remaining single option
-            # would enter the curses UI, so we only assert load+filtering via the
-            # core path (the TUI is covered in test_review_ui.py).
-            from uefi_policy.policy import load_review
-            from uefi_policy.review import ReviewEdit
+            with open(path, "w", encoding="utf-8") as fh:
+                fh.write(json.dumps({"version": 2,
+                                     "progress": "hp-x/Two",
+                                     "review": {}}) + "\n")
+            self.assertEqual(review_progress(path), "hp-x/Two")
+
+    def test_is_reviewable_skips_wildcard_and_empty(self):
+        from uefi_policy.policy import load_review
+        from uefi_policy.review import ReviewEdit
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "review.json")
             with open(path, "w", encoding="utf-8") as fh:
                 fh.write(json.dumps({"version": 2, "review": {
                     "hp-x/Wild": {"accept": [], "reject": [], "wildcard": True},
@@ -114,7 +120,7 @@ class PolicyReviewTest(unittest.TestCase):
                     "hp-x/Real": {"accept": [], "reject": [], "unknown": ["A"]},
                 }}) + "\n")
             edits = [ReviewEdit.from_review(o) for o in load_review(path)]
-            kept = [e for e in edits if not e.is_wildcard and e.values()]
+            kept = [e for e in edits if e.is_reviewable]
             self.assertEqual([e.path for e in kept], ["hp-x/Real"])
 
 

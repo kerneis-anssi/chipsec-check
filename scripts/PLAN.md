@@ -261,13 +261,17 @@ fwsetup policy show   --policy POL [--show-wildcards last|inline|no] [--json OUT
 
 `policy review`:
 - `--review` path to a review JSON file, edited in place.
-- Full-screen curses editor. `n`/`p` walk the options; within an option `j`/`k`
-  (or arrows) move the highlight over its sorted values (initial highlight = the
-  `current` value if present).
+- Full-screen curses editor. `n`/`p` walk the options (`p` wraps to the last; `n`
+  on the last offers to save & quit, or wrap to the first); within an option
+  `j`/`k` (or arrows) move the highlight over its sorted values (initial
+  highlight = the `current` value if present). The header shows `[i/N]`.
 - `+`/`-`/`Space` classify the highlighted value as accepted/rejected/undecided;
   `*` accepts it exclusively (rejects all the rest). `Esc` resets the current
   option to its on-disk state. `q` saves and quits; `x` quits discarding changes
   (after confirmation).
+- A `progress` key records the last-visited option path; it is written on quit
+  (discarding also updates it so you can resume) and the next session jumps
+  there, defaulting to the first option.
 - Core edit state is terminal-independent (`uefi_policy/review.py`) and tested
   without a TTY; the curses loop is a thin dispatch layer (`review_ui.py`).
 

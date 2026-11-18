@@ -27,12 +27,16 @@ policy show   --policy POLICY [--show-wildcards last|inline|no]
 
 `fwsetup policy review --review review.json` opens a full-screen editor:
 
-- `n` / `p` move between the options to review; within an option, `j`/`k` (or
-  arrows) move the highlight across its alphabetically-sorted values.
+- `n` / `p` move between the options to review (`p` on the first wraps to the
+  last; `n` on the last option prompts to save and quit — answer no to wrap back
+  to the first). Within an option, `j`/`k` (or arrows) move the highlight across
+  its alphabetically-sorted values. The header shows your position (`i/N`).
 - `+` accepts the highlighted value, `-` rejects it, `Space` moves it to the
   undecided set, and `*` accepts it exclusively (every other value is rejected).
 - `Esc` resets the current option to its on-disk state.
-- `q` saves and quits; `x` discards all changes (after confirmation).
+- `q` saves and quits; `x` discards changes (after confirmation).
+- Your last-visited option is recorded under a `progress` key in the review
+  file; the next session jumps straight there (defaulting to the first option).
 
 `--policy` (on `check` and `policy show`) may be a single file, a comma-separated
 list of files, a directory (all `*.json` inside, non-recursively, sorted), or be

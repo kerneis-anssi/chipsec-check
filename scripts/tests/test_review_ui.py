@@ -94,6 +94,81 @@ class ReviewRunTest(unittest.TestCase):
             saved = {o.path: o for o in load_review(path)}
             self.assertEqual(saved["hp-x/Two"].reject, ["C"])  # unchanged
 
+    def _two_options(self, d):
+        path = os.path.join(d, "review.json")
+        save_review([
+            ReviewOption(path="hp-x/One", current="A", accept=["A"], unknown=["B"]),
+            ReviewOption(path="hp-x/Two", current="C", reject=["C"], unknown=["D"]),
+        ], path)
+        return path
+
+    def test_q_saves_progress(self):
+        from uefi_policy.policy import review_progress, save_review
+        with tempfile.TemporaryDirectory() as d:
+            path = self._write(d)
+            result = run_review(edits_from(path), path,
+                                FakeScreen([ord("-"), ord("q"), ord("\n")]))
+            self.assertTrue(result)
+            self.assertEqual(review_progress(path), "hp-x/Foo")
+
+    def test_start_path_jumps_to_option_and_progress_reflects_it(self):
+        from uefi_policy.policy import review_progress
+        with tempfile.TemporaryDirectory() as d:
+            path = self._two_options(d)
+            edits = edits_from(path)
+            result = run_review(edits, path, FakeScreen([ord("q"), ord("\n")]),
+                                start_path="hp-x/Two")
+            self.assertTrue(result)
+            self.assertEqual(review_progress(path), "hp-x/Two")
+
+    def test_n_on_last_confirms_save(self):
+        from uefi_policy.policy import review_progress, load_review
+        with tempfile.TemporaryDirectory() as d:
+            path = self._two_options(d)
+            edits = edits_from(path)
+            # n -> Two (last); n again -> confirm; y -> save & quit.
+            result = run_review(edits, path, FakeScreen([ord("n"), ord("n"), ord("y"), ord("\n")]))
+            self.assertTrue(result)
+            self.assertEqual(review_progress(path), "hp-x/Two")
+
+    def test_n_on_last_reject_confirms_wraps_to_first(self):
+        from uefi_policy.policy import review_progress
+        with tempfile.TemporaryDirectory() as d:
+            path = self._two_options(d)
+            edits = edits_from(path)
+            # n -> Two; n again -> confirm; 'N' rejects -> wrap to first; q -> save.
+            keys = [ord("n"), ord("n"), ord("N"), ord("q"), ord("\n")]
+            result = run_review(edits, path, FakeScreen(keys))
+            self.assertTrue(result)
+            self.assertEqual(review_progress(path), "hp-x/One")
+
+    def test_p_wraps_to_last(self):
+        from uefi_policy.policy import review_progress
+        with tempfile.TemporaryDirectory() as d:
+            path = self._two_options(d)
+            edits = edits_from(path)
+            # 'p' on the first option wraps to the last.
+            result = run_review(edits, path, FakeScreen([ord("p"), ord("q"), ord("\n")]))
+            self.assertTrue(result)
+            self.assertEqual(review_progress(path), "hp-x/Two")
+
+    def test_wildcard_entry_skipped_and_preserved_on_save(self):
+        from uefi_policy.policy import load_review
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "review.json")
+            save_review([
+                ReviewOption(path="hp-x/Wild", accept=[], reject=[], wildcard=True),
+                ReviewOption(path="hp-x/Real", current="A", accept=["A"], unknown=["B"]),
+            ], path)
+            edits = edits_from(path)
+            self.assertEqual([e.path for e in edits if e.is_reviewable], ["hp-x/Real"])
+            # Skip to the only reviewable option; save.
+            result = run_review(edits, path, FakeScreen([ord("q"), ord("\n")]))
+            self.assertTrue(result)
+            saved = {o.path: o for o in load_review(path)}
+            self.assertTrue(saved["hp-x/Wild"].wildcard)  # preserved
+            self.assertEqual(saved["hp-x/Real"].accept, ["A"])
+
 
 if __name__ == "__main__":
     unittest.main()
