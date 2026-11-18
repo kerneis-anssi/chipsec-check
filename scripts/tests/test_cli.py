@@ -1,5 +1,6 @@
 """Tests for the command-line interface."""
 import io
+import json
 import os
 import shutil
 import tempfile
@@ -60,6 +61,33 @@ class CheckReviewOverwriteTest(unittest.TestCase):
         rc = cli.cmd_check(self.args(review=self.review_path), stream=io.StringIO())
         self.assertEqual(rc, 0)
         self.assertTrue(os.path.exists(self.review_path))
+
+
+class PolicyMergeDispatchTest(unittest.TestCase):
+    def setUp(self):
+        self._tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self._tmp)
+        self.policy_path = os.path.join(self._tmp, "policy.json")
+        self.review_path = os.path.join(self._tmp, "review.json")
+        with open(self.policy_path, "w", encoding="utf-8") as fh:
+            fh.write('{"version": 1, "policy": {}}\n')
+        review = {
+            "version": 2,
+            "review": {
+                "hp-x/Foo": {"accept": ["Enable"], "reject": [],
+                             "current": "Enable", "unknown": []},
+            },
+        }
+        with open(self.review_path, "w", encoding="utf-8") as fh:
+            fh.write(json.dumps(review) + "\n")
+
+    def test_policy_merge_dispatch(self):
+        rc = cli.main(["policy", "merge", "--review", self.review_path,
+                       "--policy", self.policy_path])
+        self.assertEqual(rc, 0)
+        with open(self.policy_path, encoding="utf-8") as fh:
+            data = json.load(fh)
+        self.assertEqual(data["policy"]["hp-x/Foo"]["accept"], ["Enable"])
 
 
 if __name__ == "__main__":

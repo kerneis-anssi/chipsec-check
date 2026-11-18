@@ -1,4 +1,4 @@
-"""Command-line interface: ``check`` (analyze) and ``merge``."""
+"""Command-line interface: ``check`` (analyze) and ``policy`` (merge; later show/review)."""
 
 from __future__ import annotations
 
@@ -66,7 +66,7 @@ def cmd_check(args: argparse.Namespace, stream=None) -> int:
         if review_path == "auto" or review_path is None:
             review_path = args.input + ".review.json"
         # Refuse to clobber an existing review file: re-running "check" (instead
-        # of "merge") must not lose a prior, possibly-edited review.
+        # of "policy merge") must not lose a prior, possibly-edited review.
         if os.path.exists(review_path):
             print(
                 f"error: review file {review_path} already exists; refusing to "
@@ -111,7 +111,10 @@ def build_parser() -> argparse.ArgumentParser:
                        help="write review file here (default: <input>.review.json)")
     check.set_defaults(func=cmd_check)
 
-    merge = sub.add_parser("merge", help="merge a reviewed file into the policy")
+    # "policy" will later host "show", "review", ... alongside "merge".
+    policy = sub.add_parser("policy", help="manage the policy database")
+    policy_sub = policy.add_subparsers(dest="policy_command", required=True)
+    merge = policy_sub.add_parser("merge", help="merge a reviewed file into the policy")
     merge.add_argument("--review", metavar="REVIEW", required=True, help="review JSON file")
     merge.add_argument("--policy", required=True, help="policy JSON database (updated in place)")
     merge.add_argument("--wildcard-all", action="store_true",

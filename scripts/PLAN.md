@@ -185,9 +185,9 @@ so a reviewer edits it just like the policy file:
 - The review file is also useful for browsing what the policy does *not*
   currently cover, so it doubles as the manual-review artifact.
 
-### Merge command
+### Policy merge command
 
-`merge --review review.json --policy policy.json`:
+`policy merge --review review.json --policy policy.json`:
 
 - Applies each option's final `accept`/`reject` lists (or `wildcard`) to the
   policy. The reviewed lists **replace** any prior policy entry — they do not
@@ -199,8 +199,8 @@ so a reviewer edits it just like the policy file:
 - `wildcard` → set the option to `wildcard: true`; any existing `accept`/`reject`
   lists for it are dropped (a wildcard supercedes per-value rules).
 - An option left **fully undecided** (empty `accept`/`reject`, no `wildcard`) is
-  **skipped silently** — no policy row is created/changed — and `merge` reports
-  how many were skipped. With `--wildcard-all`, every undecided option is instead
+  **skipped silently** — no policy row is created/changed — and `policy merge`
+  reports how many were skipped. With `--wildcard-all`, every undecided option is instead
   promoted to a wildcard.
 - For a brand-new option, a new policy row is created the first time a value is
   decided (this bootstraps options that were absent from the policy but seen in
@@ -222,8 +222,8 @@ simply not evaluated.
 ## 6. CLI design (single script, subcommands)
 
 ```
-analyze_uefi_cfg.py check    <dumpfile> [--policy POL] [--report OUT] [--review REVIEW|auto]
-analyze_uefi_cfg.py merge    --review REVIEW [--policy POL] [--backup]
+analyze_uefi_cfg.py check         <dumpfile> [--policy POL] [--report OUT] [--review REVIEW|auto]
+analyze_uefi_cfg.py policy merge  --review REVIEW [--policy POL] [--backup]
 ```
 
 `check` is the default action:
@@ -234,7 +234,7 @@ analyze_uefi_cfg.py merge    --review REVIEW [--policy POL] [--backup]
 - `--report` path for the text report copy (in addition to stdout).
 - `--review` path for the review file (auto-named if omitted: `<input>.review.json`).
 
-`merge`:
+`policy merge`:
 - `--review`, `--policy` (default same policy), `--backup` to keep pre-merge copy.
 - `--wildcard-all`: convenience flag — accept every not-yet-decided option as a
   wildcard (sets `wildcard: true` for its option). Since wildcard is the expected
