@@ -27,7 +27,7 @@ class CheckReviewOverwriteTest(unittest.TestCase):
         base = dict(
             input=self.input_path,
             format="auto",
-            policy=self.policy_path,
+            policy=[self.policy_path],
             report=None,
             review=review,
         )
@@ -147,7 +147,7 @@ class PolicyShowTest(unittest.TestCase):
         self.addCleanup(os.unlink, path)
         out = io.StringIO()
         rc = cli.cmd_show(
-            Namespace(policy=path, show_wildcards="no", json=None), stream=out)
+            Namespace(policy=[path], show_wildcards="no", json=None), stream=out)
         self.assertEqual(rc, 0)
         self.assertIn("hp-x/Secure Boot:", out.getvalue())
 
@@ -164,7 +164,7 @@ class PolicyShowTest(unittest.TestCase):
             out_path = os.path.join(tmp, "out.json")
             out = io.StringIO()
             rc = cli.cmd_show(
-                Namespace(policy=policy_path, show_wildcards="last", json=out_path),
+                Namespace(policy=[policy_path], show_wildcards="last", json=out_path),
                 stream=out,
             )
             self.assertEqual(rc, 0)
@@ -190,7 +190,7 @@ class PolicyShowTest(unittest.TestCase):
                 }}, fh)
             out_path = os.path.join(tmp, "out.json")
             rc = cli.cmd_show(
-                Namespace(policy=policy_path, show_wildcards="no", json=out_path),
+                Namespace(policy=[policy_path], show_wildcards="no", json=out_path),
                 stream=io.StringIO(),
             )
             self.assertEqual(rc, 0)
@@ -243,7 +243,7 @@ class WildcardAllPreservesDecisionsTest(unittest.TestCase):
     def test_wildcard_all_preserves_accept_reject(self):
         # Step 1: check produces a review carrying the existing accept/reject.
         rc = cli.cmd_check(Namespace(input=self.dump_path, format="auto",
-                                     policy=self.policy_path, report=None,
+                                     policy=[self.policy_path], report=None,
                                      review=self.review_path),
                            stream=io.StringIO())
         self.assertEqual(rc, 0)

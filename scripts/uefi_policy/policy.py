@@ -103,6 +103,53 @@ def load_policy(path: str) -> Policy:
     return policy
 
 
+def _expand_policy_sources(sources: List[str]) -> List[str]:
+    """Expand policy specifications into an ordered list of JSON file paths.
+
+    Each item may be:
+      - a single file path,
+      - a comma-separated list of file paths,
+      - a directory (all ``*.json`` files inside it, non-recursive, sorted).
+    """
+    files: List[str] = []
+    for spec in sources:
+        for part in (p.strip() for p in spec.split(",")):
+            if not part:
+                continue
+            if os.path.isdir(part):
+                names = sorted(f for f in os.listdir(part) if f.endswith(".json"))
+                files.extend(os.path.join(part, name) for name in names)
+            else:
+                files.append(part)
+    return files
+
+
+def load_policies(sources: List[str]) -> Policy:
+    """Load and merge policy entries from several sources into one Policy.
+
+    A source may be a single file, a comma-separated list, or a directory. A
+    given key must appear in at most one source file; a collision is a hard
+    error (fail-closed) listing the key and both origin files.
+    """
+    policy = Policy()
+    origin: dict = {}
+    for path in _expand_policy_sources(sources):
+        data = _load_json(path)
+        entries_section = data.get("policy") if isinstance(data, dict) else None
+        if not isinstance(entries_section, dict):
+            raise PolicyError(f"{path}: missing 'policy' object")
+        for option_path, entry in entries_section.items():
+            entry_obj = _validate_policy_entry(option_path, entry)
+            if option_path in policy.entries:
+                raise PolicyError(
+                    f"conflicting policy key '{option_path}' in '{path}' "
+                    f"(already defined in '{origin[option_path]}')"
+                )
+            policy.entries[option_path] = entry_obj
+            origin[option_path] = path
+    return policy
+
+
 def save_policy(policy: Policy, path: str, backup: bool = False) -> None:
     if backup and os.path.exists(path):
         shutil.copy2(path, path + ".bak")

@@ -10,6 +10,7 @@ from uefi_policy.policy import (
     PolicyError,
     PolicyEntry,
     ReviewOption,
+    load_policies,
     load_policy,
     load_review,
     merge_review,
@@ -71,6 +72,55 @@ class PolicyTest(unittest.TestCase):
             with self.assertRaises(PolicyError) as ctx:
                 load_policy(path)
             self.assertIn("both accept and reject", str(ctx.exception))
+
+
+class LoadPoliciesTest(unittest.TestCase):
+    def _policy_file(self, d, name, entries):
+        path = os.path.join(d, name)
+        with open(path, "w", encoding="utf-8") as fh:
+            json.dump({"version": 1, "policy": entries}, fh)
+        return path
+
+    def test_multiple_files_merge(self):
+        with tempfile.TemporaryDirectory() as d:
+            a = self._policy_file(d, "a.json", {"hp-x/One": {"accept": ["x"]}})
+            b = self._policy_file(d, "b.json", {"hp-x/Two": {"reject": ["y"]}})
+            p = load_policies([a, b])
+            self.assertEqual(set(p.entries), {"hp-x/One", "hp-x/Two"})
+            self.assertEqual(p.entries["hp-x/One"].accept, ["x"])
+            self.assertEqual(p.entries["hp-x/Two"].reject, ["y"])
+
+    def test_comma_separated_and_multiple_flags(self):
+        with tempfile.TemporaryDirectory() as d:
+            a = self._policy_file(d, "a.json", {"hp-x/One": {"accept": ["x"]}})
+            b = self._policy_file(d, "b.json", {"hp-x/Two": {"reject": ["y"]}})
+            p = load_policies([f"{a},{b}"])  # comma in one spec
+            self.assertEqual(set(p.entries), {"hp-x/One", "hp-x/Two"})
+            # and as separate flag uses (repeatable).
+            p2 = load_policies([a, b])
+            self.assertEqual(set(p2.entries), {"hp-x/One", "hp-x/Two"})
+
+    def test_directory_loads_json_non_recursive_sorted(self):
+        with tempfile.TemporaryDirectory() as d:
+            self._policy_file(d, "b.json", {"hp-x/B": {"accept": ["y"]}})
+            self._policy_file(d, "a.json", {"hp-x/A": {"accept": ["x"]}})
+            os.mkdir(os.path.join(d, "sub"))
+            self._policy_file(os.path.join(d, "sub"), "c.json", {"hp-x/C": {"reject": ["z"]}})
+            self._policy_file(d, "ignore.txt", {"hp-x/X": {"accept": []}})
+            p = load_policies([d])
+            # non-recursive, *.json only, sorted (a before b), sub dir ignored.
+            self.assertEqual(list(p.entries), ["hp-x/A", "hp-x/B"])
+
+    def test_conflicting_key_errors(self):
+        with tempfile.TemporaryDirectory() as d:
+            a = self._policy_file(d, "a.json", {"hp-x/Shared": {"accept": ["x"]}})
+            b = self._policy_file(d, "b.json", {"hp-x/Shared": {"reject": ["y"]}})
+            with self.assertRaises(PolicyError) as ctx:
+                load_policies([a, b])
+            msg = str(ctx.exception)
+            self.assertIn("conflicting policy key 'hp-x/Shared'", msg)
+            self.assertIn("a.json", msg)
+            self.assertIn("b.json", msg)
 
 
 class ReviewMergeTest(unittest.TestCase):

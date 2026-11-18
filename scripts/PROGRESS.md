@@ -194,6 +194,16 @@ support a manual review → merge workflow. See PLAN.md.
   genuinely undecided options: existing non-empty `accept`/`reject` entries are
   preserved rather than turned into wildcards. 56 tests pass.
 
+### Step 19 — multi-source --policy
+- `check` and `policy show` now accept multiple policy sources for `--policy`: a
+  single file, a comma-separated list, a directory (all `*.json` inside,
+  non-recursively, sorted), or a repeatable flag. Entries are merged; a key
+  appearing in more than one source is a hard conflict error (fail-closed).
+- `policy merge` keeps a single policy file that it updates in place.
+- Added `load_policies()`/`_expand_policy_sources()` in `policy.py` plus tests
+  (merge, comma/multi-flag, directory non-recursive, conflict error). 60 tests
+  pass.
+
 ### Step 16 — rename the CLI tool to fwsetup
 - Renamed the entry-point script `analyze_uefi_cfg.py` → `fwsetup`, and the
   `argparse` `prog` is now `fwsetup`. Updated all command invocations in the

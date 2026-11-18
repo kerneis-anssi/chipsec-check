@@ -20,6 +20,12 @@ policy show   --policy POLICY [--show-wildcards last|inline|no]
    `wildcard: true`) for each option.
 3. `policy merge` applies those decisions to the policy database.
 
+`--policy` (on `check` and `policy show`) may be a single file, a comma-separated
+list of files, a directory (all `*.json` inside, non-recursively, sorted), or be
+repeated. Entries are merged; a given option key must appear in at most one
+source, otherwise loading fails with a conflict error. (`policy merge` requires
+a single policy file, which it updates in place.)
+
 ## Quick start
 
 ```

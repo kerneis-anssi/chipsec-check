@@ -231,7 +231,9 @@ fwsetup policy show   --policy POL [--show-wildcards last|inline|no] [--json OUT
 - `--input` source dump path (mandatory).
 - `--format`/auto-detect parser (`auto` is default; `sysfs-dir`,
   `fwupd-json`, `hp-setup`).
-- `--policy` path to policy JSON (required).
+- `--policy` policy JSON database(s): a file, a comma-separated list, a directory
+  (all `*.json`, non-recursive, sorted), or repeatable. Merged; a key appearing in
+  more than one source is a conflict error.
 - `--report` path for the text report copy (in addition to stdout).
 - `--review` path for the review file (auto-named if omitted: `<input>.review.json`).
 
@@ -243,7 +245,8 @@ fwsetup policy show   --policy POL [--show-wildcards last|inline|no] [--json OUT
   need an explicit `accept`/`reject` and wildcard the rest in one go.
 
 `policy show`:
-- `--policy` path to policy JSON (required).
+- `--policy` path to policy JSON (required); same multi-source rules as `check`
+  (file, comma-separated, directory, or repeatable; merged with conflict errors).
 - `--show-wildcards` `last|inline|no` (default `last`) controls how wildcard-only
   entries are displayed:
   - `last` — non-wildcard entries first (sorted by key), then wildcarded entries

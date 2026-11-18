@@ -10,8 +10,9 @@ from typing import List, Optional
 
 from uefi_policy.analyze import evaluate, gather_review
 from uefi_policy.parsers import available, create, detect
-from uefi_policy.policy import (POLICY_VERSION, Policy, PolicyError, load_policy,
-                                load_review, merge_review, save_policy, save_review)
+from uefi_policy.policy import (POLICY_VERSION, Policy, PolicyError, load_policies,
+                                load_policy, load_review, merge_review, save_policy,
+                                save_review)
 from uefi_policy.reports import build_report, format_policy, ordered_entries, write_report
 
 
@@ -45,7 +46,7 @@ def cmd_check(args: argparse.Namespace, stream=None) -> int:
             else:
                 parser = create(args.format)
             options = parser.parse(source)
-        policy = load_policy(args.policy)
+        policy = load_policies(args.policy)
     except PolicyError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1
@@ -103,7 +104,7 @@ def cmd_merge(args: argparse.Namespace) -> int:
 def cmd_show(args: argparse.Namespace, stream=None) -> int:
     stream = stream or sys.stdout
     try:
-        policy = load_policy(args.policy)
+        policy = load_policies(args.policy)
     except PolicyError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1
@@ -129,7 +130,10 @@ def build_parser() -> argparse.ArgumentParser:
     check.add_argument("input", help="path to a config dump file or a sysfs firmware-attributes directory")
     check.add_argument("--format", default="auto", choices=["auto"] + available(),
                        help="input parser (default: auto-detect)")
-    check.add_argument("--policy", required=True, help="policy JSON database")
+    check.add_argument("--policy", required=True, action="append",
+                       help="policy JSON database; may be a file, a comma-separated "
+                            "list, or a directory (loads all *.json, non-recursive); "
+                            "repeatable")
     check.add_argument("--report", metavar="OUT", help="also write the report to this text file")
     check.add_argument("--review", nargs="?", const="auto", default=None,
                        help="write review file here (default: <input>.review.json)")
@@ -147,7 +151,10 @@ def build_parser() -> argparse.ArgumentParser:
     merge.set_defaults(func=cmd_merge)
 
     show = policy_sub.add_parser("show", help="pretty-print the policy database")
-    show.add_argument("--policy", required=True, help="policy JSON database")
+    show.add_argument("--policy", required=True, action="append",
+                      help="policy JSON database; may be a file, a comma-separated "
+                           "list, or a directory (loads all *.json, non-recursive); "
+                           "repeatable")
     show.add_argument("--show-wildcards", metavar="MODE",
                       choices=("last", "inline", "no"), default="last",
                       help="how to display wildcard-only entries: last (default), "
