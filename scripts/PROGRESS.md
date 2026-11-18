@@ -224,6 +224,14 @@ support a manual review → merge workflow. See PLAN.md.
 - Tests cover progress write/jump, wrap-around, save-confirm on last, and
   wildcard preservation. 91 tests pass.
 
+### Step 27 — fix exclusive (*) value-disappearance & defensive cursor
+- `exclusive()` mutated `_accept` before computing `_reject` from `values()`,
+  so the flipped-away values vanished from the list and the cursor went out of
+  range (crash on the next `*`). Now snapshots the full value set first, keeps
+  every value, and re-points the cursor at the accepted value.
+- `assign()`/`exclusive()` are defensive: an out-of-range cursor is a no-op
+  instead of an IndexError. Added regression tests; 94 tests pass.
+
 ### Step 18 — regression: --wildcard-all preserves existing decisions
 - Added an end-to-end regression test locking in that `check --review` followed
   by `policy update --wildcard-all` (with an unedited review) only wildcards

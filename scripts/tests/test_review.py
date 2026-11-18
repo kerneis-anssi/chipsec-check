@@ -97,6 +97,43 @@ class ReviewEditOpsTest(unittest.TestCase):
         # unknown bucket emptied
         self.assertEqual(e.to_review().unknown, [])
 
+    def test_exclusive_flip_keeps_all_values_and_cursor(self):
+        # Starting: reject Disable, accept Enable. Flip exclusive the other way
+        # twice (regression: values used to disappear + cursor went out of range).
+        opt = ReviewOption(path="hp-x/Secure Boot", current="Enable",
+                           accept=["Enable"], reject=["Disable"], unknown=[])
+        e = ReviewEdit.from_review(opt)
+        e.cursor = e.values().index("Disable")
+        e.exclusive()
+        self.assertEqual(e.values(), ["Disable", "Enable"])
+        self.assertTrue(0 <= e.cursor < len(e.values()))
+        e.cursor = e.values().index("Enable")
+        e.exclusive()
+        # The flipped-away value must not vanish from the list.
+        self.assertEqual(e.values(), ["Disable", "Enable"])
+        self.assertTrue(0 <= e.cursor < len(e.values()))
+        self.assertEqual(e.classify("Enable"), ACCEPT)
+        self.assertEqual(e.classify("Disable"), REJECT)
+        # Pressing * again (nothing else selected) must not crash.
+        e.exclusive()
+        self.assertEqual(e.values(), ["Disable", "Enable"])
+
+    def test_exclusive_empty_cursor_is_defensive(self):
+        opt = ReviewOption(path="hp-x/Secure Boot", current="Enable",
+                           accept=["Enable"], reject=["Disable"], unknown=[])
+        e = ReviewEdit.from_review(opt)
+        e.cursor = 99  # out of range (no valid selection)
+        e.exclusive()  # must not raise
+        e.assign(ACCEPT)  # must not raise
+        self.assertEqual(e.to_review().accept, ["Enable"])
+
+    def test_exclusive_on_single_value(self):
+        opt = ReviewOption(path="hp-x/F", current="On",
+                           accept=[], reject=[], unknown=["On"])
+        e = ReviewEdit.from_review(opt)
+        e.exclusive()
+        self.assertEqual(e.classify("On"), ACCEPT)
+
     def test_reset_restores_original(self):
         e = mk()
         e.cursor = e.values().index("Auto")

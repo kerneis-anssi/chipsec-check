@@ -93,9 +93,18 @@ class ReviewEdit:
 
     # -- edit operations ---------------------------------------------------
 
+    def _selected(self) -> Optional[str]:
+        """The highlighted value, or None when the cursor is out of range."""
+        vals = self.values()
+        if 0 <= self.cursor < len(vals):
+            return vals[self.cursor]
+        return None
+
     def assign(self, target: str) -> None:
         """Move the highlighted value into the given set (accept/reject/undecided)."""
-        value = self.values()[self.cursor]
+        value = self._selected()
+        if value is None:
+            return  # defensive: nothing highlighted
         for s in (self._accept, self._reject, self._unknown):
             s.discard(value)
         if target == ACCEPT:
@@ -107,10 +116,20 @@ class ReviewEdit:
 
     def exclusive(self) -> None:
         """Accept exactly the highlighted value; reject everything else."""
-        value = self.values()[self.cursor]
+        value = self._selected()
+        if value is None:
+            return  # defensive: nothing highlighted
+        # Snapshot the full value set BEFORE mutating any set: values() is
+        # derived from the sets, so mutating _accept first would make the
+        # subsequent "everything else" computation see only the accepted value
+        # and drop the other values (the disappearance bug).
+        all_values = set(self.values())
         self._accept = {value}
-        self._reject = set(self.values()) - {value}
+        self._reject = all_values - {value}
         self._unknown = set()
+        # The accepted value is now the only accepted one; point the cursor at it
+        # (keeps the highlight valid even if the list shrank).
+        self.cursor = self.values().index(value)
 
     def reset(self) -> None:
         """Restore this option to its on-disk state (the original snapshot)."""
