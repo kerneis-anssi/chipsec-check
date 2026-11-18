@@ -224,6 +224,7 @@ simply not evaluated.
 ```
 analyze_uefi_cfg.py check         <dumpfile> [--policy POL] [--report OUT] [--review REVIEW|auto]
 analyze_uefi_cfg.py policy merge  --review REVIEW [--policy POL] [--backup]
+analyze_uefi_cfg.py policy show   --policy POL [--show-wildcards last|inline|no]
 ```
 
 `check` is the default action:
@@ -240,6 +241,17 @@ analyze_uefi_cfg.py policy merge  --review REVIEW [--policy POL] [--backup]
   wildcard (sets `wildcard: true` for its option). Since wildcard is the expected
   default for most options, this lets the user review only the few options that
   need an explicit `accept`/`reject` and wildcard the rest in one go.
+
+`policy show`:
+- `--policy` path to policy JSON (required).
+- `--show-wildcards` `last|inline|no` (default `last`) controls how wildcard-only
+  entries are displayed:
+  - `last` — non-wildcard entries first (sorted by key), then wildcarded entries
+    grouped at the end (sorted by key among themselves).
+  - `inline` — keep all entries sorted by key together.
+  - `no` — omit wildcard-only entries entirely.
+- Each option is printed as a block showing its `accept` and `reject` values (or
+  `wildcard: true`).
 
 ## 7. Suggested file layout
 

@@ -169,6 +169,17 @@ support a manual review → merge workflow. See PLAN.md.
 - Updated the CLI parser, handlers, tests (incl. a new `policy merge` dispatch
   test) and the README/PLAN usage docs.
 
+### Step 15 — policy show
+- Added `analyze_uefi_cfg.py policy show --policy P [--show-wildcards …]`, a
+  pretty-printed terminal view of the policy: each key shows its `accept` and
+  `reject` values (or `wildcard: true`).
+- `--show-wildcards` (default `last`) controls wildcard-only entries: `last`
+  groups them at the end sorted by key among themselves; `inline` keeps them
+  sorted with all keys; `no` omits them.
+- `format_policy()` in `reports.py`; `cmd_show` wired into the `policy`
+  subcommand. Tests in `tests/test_cli.py` cover the three modes, ordering, and
+  CLI dispatch. Docs updated in README/PLAN.
+
 ### Step 12 — allow accept+reject together in one option
 - Decided to flag `UNKNOWN_VALUE` for the full enumerable `possible_values` set
   (not just the current value), so every newly-possible enum value must be

@@ -90,5 +90,66 @@ class PolicyMergeDispatchTest(unittest.TestCase):
         self.assertEqual(data["policy"]["hp-x/Foo"]["accept"], ["Enable"])
 
 
+class PolicyShowTest(unittest.TestCase):
+    @staticmethod
+    def _policy(**kw):
+        from uefi_policy.policy import Policy, PolicyEntry
+        p = Policy()
+        for key, entry in kw.items():
+            p.entries[key] = PolicyEntry(**entry)
+        return p
+
+    def _sample(self):
+        return self._policy(
+            **{
+                "hp-x/Audio": {"reject": ["Muted"]},
+                "hp-x/Secure Boot": {"accept": ["Enable"], "reject": ["Disable"]},
+                "hp-x/Bluetooth": {"wildcard": True},
+                "hp-x/TPM": {"wildcard": True},
+            }
+        )
+
+    def test_last_groups_wildcards_at_end(self):
+        from uefi_policy.reports import format_policy
+        text = format_policy(self._sample(), "last")
+        audio = text.index("hp-x/Audio:")
+        secure = text.index("hp-x/Secure Boot:")
+        bt = text.index("hp-x/Bluetooth:")
+        tpm = text.index("hp-x/TPM:")
+        self.assertLess(audio, secure)  # normal entries sorted by key
+        self.assertLess(audio, bt)      # wildcards grouped after normal
+        self.assertLess(bt, tpm)        # wildcards sorted among themselves
+        self.assertIn("accept: Enable", text)
+        self.assertIn("reject: Disable", text)
+        self.assertIn("wildcard: true", text)
+
+    def test_inline_keeps_all_sorted_together(self):
+        from uefi_policy.reports import format_policy
+        text = format_policy(self._sample(), "inline")
+        keys = ["hp-x/Audio:", "hp-x/Bluetooth:", "hp-x/Secure Boot:", "hp-x/TPM:"]
+        positions = [text.index(k) for k in keys]
+        self.assertEqual(positions, sorted(positions))
+
+    def test_no_omits_wildcards(self):
+        from uefi_policy.reports import format_policy
+        text = format_policy(self._sample(), "no")
+        self.assertNotIn("Bluetooth", text)
+        self.assertNotIn("TPM", text)
+        self.assertIn("hp-x/Secure Boot:", text)
+
+    def test_show_dispatch(self):
+        with tempfile.NamedTemporaryFile(
+                "w", suffix=".json", delete=False) as fh:
+            json.dump({"version": 1, "policy": {
+                "hp-x/Secure Boot": {"accept": ["Enable"], "reject": ["Disable"]},
+            }}, fh)
+            path = fh.name
+        self.addCleanup(os.unlink, path)
+        out = io.StringIO()
+        rc = cli.cmd_show(Namespace(policy=path, show_wildcards="no"), stream=out)
+        self.assertEqual(rc, 0)
+        self.assertIn("hp-x/Secure Boot:", out.getvalue())
+
+
 if __name__ == "__main__":
     unittest.main()

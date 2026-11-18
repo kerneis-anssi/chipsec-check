@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-from typing import IO, List, Sequence
+from typing import IO, List, Sequence, Tuple
 
 from uefi_policy.model import Result, Status
+from uefi_policy.policy import Policy, PolicyEntry
 
 _ORDER = [Status.VIOLATION, Status.UNKNOWN_OPTION, Status.UNKNOWN_VALUE, Status.OK, Status.IGNORED]
 
@@ -43,3 +44,38 @@ def build_report(results: Sequence[Result]) -> str:
 
 def write_report(report: str, stream: IO[str]) -> None:
     stream.write(report + "\n")
+
+
+def format_policy(policy: Policy, show_wildcards: str = "last") -> str:
+    """Pretty-print a policy database for terminal display.
+
+    For each key, show its accepted and rejected values (or ``wildcard``).
+    ``show_wildcards`` controls how wildcard-only entries are ordered:
+      - ``last`` (default): group wildcard entries at the end, sorted by key
+        among themselves; non-wildcard entries lead, sorted by key.
+      - ``inline``: keep everything sorted by key together.
+      - ``no``: omit wildcard entries entirely.
+    """
+    entries: List[Tuple[str, PolicyEntry]] = sorted(policy.entries.items())
+    if show_wildcards == "no":
+        entries = [kv for kv in entries if not kv[1].wildcard]
+    elif show_wildcards == "last":
+        normal = [kv for kv in entries if not kv[1].wildcard]
+        wildcards = [kv for kv in entries if kv[1].wildcard]
+        entries = normal + wildcards
+    # "inline" (or anything else) leaves entries sorted by key as-is.
+
+    blocks = ["\n".join(_policy_entry_lines(key, entry)) for key, entry in entries]
+    return "\n\n".join(blocks)
+
+
+def _policy_entry_lines(key: str, entry: PolicyEntry) -> List[str]:
+    lines = [f"{key}:"]
+    if entry.wildcard:
+        lines.append("    wildcard: true")
+    else:
+        if entry.accept:
+            lines.append(f"    accept: {', '.join(entry.accept)}")
+        if entry.reject:
+            lines.append(f"    reject: {', '.join(entry.reject)}")
+    return lines

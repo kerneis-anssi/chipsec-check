@@ -10,6 +10,7 @@ Full design notes: see `PLAN.md`. Progress: see `PROGRESS.md`.
 ```
 check         <dumpfile> --policy POLICY [--report OUT] [--review REVIEW]
 policy merge  --review REVIEW --policy POLICY [--wildcard-all] [--backup]
+policy show   --policy POLICY [--show-wildcards last|inline|no]
 ```
 
 1. `check` parses the configuration dump, evaluates each option against the
@@ -34,6 +35,13 @@ python3 analyze_uefi_cfg.py check bios-settings.json \
 
 # Apply the reviewed decisions to the policy
 python3 analyze_uefi_cfg.py policy merge --review review.json --policy policy.json --backup
+
+# Pretty-print the policy (grouped values per option; wildcards last)
+python3 analyze_uefi_cfg.py policy show --policy policy.json
+
+# Omit wildcard-only entries, or keep them inline, respectively:
+python3 analyze_uefi_cfg.py policy show --policy policy.json --show-wildcards no
+python3 analyze_uefi_cfg.py policy show --policy policy.json --show-wildcards inline
 ```
 
 ## Input formats

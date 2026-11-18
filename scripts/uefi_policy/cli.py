@@ -10,7 +10,7 @@ from typing import List, Optional
 from uefi_policy.analyze import evaluate, gather_review
 from uefi_policy.parsers import available, create, detect
 from uefi_policy.policy import Policy, PolicyError, load_policy, load_review, merge_review, save_policy, save_review
-from uefi_policy.reports import build_report, write_report
+from uefi_policy.reports import build_report, format_policy, write_report
 
 
 def _read_source(path: str) -> str:
@@ -97,6 +97,18 @@ def cmd_merge(args: argparse.Namespace) -> int:
     print(msg)
     return 0
 
+
+def cmd_show(args: argparse.Namespace, stream=None) -> int:
+    stream = stream or sys.stdout
+    try:
+        policy = load_policy(args.policy)
+    except PolicyError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    text = format_policy(policy, args.show_wildcards)
+    stream.write(text + ("\n" if text else ""))
+    return 0
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="analyze_uefi_cfg.py", description=__doc__)
     sub = parser.add_subparsers(dest="command", required=False)
@@ -111,7 +123,7 @@ def build_parser() -> argparse.ArgumentParser:
                        help="write review file here (default: <input>.review.json)")
     check.set_defaults(func=cmd_check)
 
-    # "policy" will later host "show", "review", ... alongside "merge".
+    # "policy" will later host "review", ... alongside "merge" and "show".
     policy = sub.add_parser("policy", help="manage the policy database")
     policy_sub = policy.add_subparsers(dest="policy_command", required=True)
     merge = policy_sub.add_parser("merge", help="merge a reviewed file into the policy")
@@ -121,6 +133,14 @@ def build_parser() -> argparse.ArgumentParser:
                        help="treat every 'review' decision as a wildcard")
     merge.add_argument("--backup", action="store_true", help="keep a .bak copy of the policy")
     merge.set_defaults(func=cmd_merge)
+
+    show = policy_sub.add_parser("show", help="pretty-print the policy database")
+    show.add_argument("--policy", required=True, help="policy JSON database")
+    show.add_argument("--show-wildcards", metavar="MODE",
+                      choices=("last", "inline", "no"), default="last",
+                      help="how to display wildcard-only entries: last (default), "
+                           "inline, or no (omit them)")
+    show.set_defaults(func=cmd_show)
 
     return parser
 
