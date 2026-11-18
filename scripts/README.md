@@ -10,6 +10,7 @@ Full design notes: see `PLAN.md`. Progress: see `PROGRESS.md`.
 ```
 check         <dumpfile> --policy POLICY [--review REVIEW]
 policy update --review REVIEW --policy POLICY [--wildcard-all] [--backup]
+policy review --review REVIEW
 policy show   --policy POLICY [--show-wildcards last|inline|no]
 ```
 
@@ -19,7 +20,19 @@ policy show   --policy POLICY [--show-wildcards last|inline|no]
    (Pipe to `tee report.txt` to save the stdout report.)
 2. A human edits the review file, moving values into `accept`/`reject` (or set
    `wildcard: true`) for each option.
-3. `policy update` applies those decisions to the policy database.
+3. `policy update` applies those decisions to the policy database. (Or edit the
+   review interactively first with `policy review`.)
+
+### Reviewing interactively
+
+`fwsetup policy review --review review.json` opens a full-screen editor:
+
+- `n` / `p` move between the options to review; within an option, `j`/`k` (or
+  arrows) move the highlight across its alphabetically-sorted values.
+- `+` accepts the highlighted value, `-` rejects it, `Space` moves it to the
+  undecided set, and `*` accepts it exclusively (every other value is rejected).
+- `Esc` resets the current option to its on-disk state.
+- `q` saves and quits; `x` discards all changes (after confirmation).
 
 `--policy` (on `check` and `policy show`) may be a single file, a comma-separated
 list of files, a directory (all `*.json` inside, non-recursively, sorted), or be

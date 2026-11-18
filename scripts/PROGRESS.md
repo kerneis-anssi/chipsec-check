@@ -194,6 +194,23 @@ support a manual review → merge workflow. See PLAN.md.
   entry). `cmd_merge` → `cmd_update`; user-facing messages and docs updated.
   Internal `merge_review()` keeps its name. 63 tests pass.
 
+### Step 24 — policy review (core)
+- Added `uefi_policy/review.py`: `ReviewEdit`, a terminal-independent holder for
+  an option's mutable accept/reject/undecided sets plus a highlight cursor,
+  supporting assign (accept/reject/undecided), exclusive (accept one, reject the
+  rest), reset-to-disk, and cursor movement. Unit-tested (`test_review.py`)
+  without any TTY.
+
+### Step 25 — policy review (curses UI + CLI)
+- Added `fwsetup policy review --review REVIEW`: a full-screen curses editor
+  walking the review options. `n`/`p` switch options; `j`/`k`/arrows move the
+  highlight over each option's alphabetically-sorted values; `+`/`-`/`Space`
+  classify the highlighted value; `*` accepts it exclusively; `Esc` resets the
+  current option to disk; `q` saves & quits; `x` discards (after y/N confirm).
+- `uefi_policy/review_ui.py` is a thin curses dispatch over the core state; the
+  loop is driven by a fake screen in tests (`test_review_ui.py`). CLI + README/
+  PLAN docs updated. 82 tests pass.
+
 ### Step 18 — regression: --wildcard-all preserves existing decisions
 - Added an end-to-end regression test locking in that `check --review` followed
   by `policy update --wildcard-all` (with an unedited review) only wildcards

@@ -14,6 +14,8 @@ from uefi_policy.policy import (POLICY_VERSION, Policy, PolicyError, load_polici
                                 load_policy, load_review, merge_review, save_policy,
                                 save_review)
 from uefi_policy.reports import build_report, format_policy, ordered_entries, write_report
+from uefi_policy.review import ReviewEdit
+from uefi_policy.review_ui import run as run_review_tui
 
 
 def _read_source(path: str) -> str:
@@ -96,6 +98,32 @@ def cmd_update(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_review(args: argparse.Namespace) -> int:
+    try:
+        entries = load_review(args.review)
+    except PolicyError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    edits = [ReviewEdit.from_review(o) for o in entries] or []
+    # Skip already-decided (wildcard) or empty options; nothing to decide.
+    edits = [e for e in edits if not e.is_wildcard and e.values()]
+    if not edits:
+        print(f"no options to review in {args.review}")
+        return 0
+    try:
+        import curses
+
+        saved = curses.wrapper(lambda stdscr: run_review_tui(edits, args.review, stdscr))
+    except KeyboardInterrupt:
+        print("cancelled")
+        return 1
+    if saved:
+        print(f"review saved to {args.review}")
+    else:
+        print("review discarded (no changes saved)")
+    return 0
+
+
 def cmd_show(args: argparse.Namespace, stream=None) -> int:
     stream = stream or sys.stdout
     try:
@@ -143,6 +171,10 @@ def build_parser() -> argparse.ArgumentParser:
                         help="treat every 'review' decision as a wildcard")
     update.add_argument("--backup", action="store_true", help="keep a .bak copy of the policy")
     update.set_defaults(func=cmd_update)
+
+    review = policy_sub.add_parser("review", help="interactively review options in a review file")
+    review.add_argument("--review", required=True, help="review JSON file to edit in place")
+    review.set_defaults(func=cmd_review)
 
     show = policy_sub.add_parser("show", help="pretty-print the policy database")
     show.add_argument("--policy", required=True, action="append",

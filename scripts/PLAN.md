@@ -224,6 +224,7 @@ simply not evaluated.
 ```
 fwsetup check         <dumpfile> [--policy POL] [--review REVIEW|auto]
 fwsetup policy update --review REVIEW [--policy POL] [--backup]
+fwsetup policy review --review REVIEW
 fwsetup policy show   --policy POL [--show-wildcards last|inline|no] [--json OUT]
 ```
 
@@ -257,6 +258,18 @@ fwsetup policy show   --policy POL [--show-wildcards last|inline|no] [--json OUT
   `wildcard: true`).
 - `--json OUT` also writes the *policy itself* as JSON (version 1 format), with
   options ordered per `--show-wildcards` (so `no` omits wildcard-only entries).
+
+`policy review`:
+- `--review` path to a review JSON file, edited in place.
+- Full-screen curses editor. `n`/`p` walk the options; within an option `j`/`k`
+  (or arrows) move the highlight over its sorted values (initial highlight = the
+  `current` value if present).
+- `+`/`-`/`Space` classify the highlighted value as accepted/rejected/undecided;
+  `*` accepts it exclusively (rejects all the rest). `Esc` resets the current
+  option to its on-disk state. `q` saves and quits; `x` quits discarding changes
+  (after confirmation).
+- Core edit state is terminal-independent (`uefi_policy/review.py`) and tested
+  without a TTY; the curses loop is a thin dispatch layer (`review_ui.py`).
 
 ## 7. Suggested file layout
 

@@ -89,6 +89,35 @@ class PolicyUpdateDispatchTest(unittest.TestCase):
         self.assertEqual(data["policy"]["hp-x/Foo"]["accept"], ["Enable"])
 
 
+class PolicyReviewTest(unittest.TestCase):
+    def test_empty_review_is_noop(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "review.json")
+            with open(path, "w", encoding="utf-8") as fh:
+                fh.write(json.dumps({"version": 2, "review": {}}) + "\n")
+            rc = cli.cmd_review(Namespace(review=path))
+            self.assertEqual(rc, 0)
+
+    def test_wildcard_and_empty_options_filtered_before_tui(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "review.json")
+            # golden: a wildcarded entry and an entry with no values are skipped;
+            # a normal entry remains. cmd_review with the remaining single option
+            # would enter the curses UI, so we only assert load+filtering via the
+            # core path (the TUI is covered in test_review_ui.py).
+            from uefi_policy.policy import load_review
+            from uefi_policy.review import ReviewEdit
+            with open(path, "w", encoding="utf-8") as fh:
+                fh.write(json.dumps({"version": 2, "review": {
+                    "hp-x/Wild": {"accept": [], "reject": [], "wildcard": True},
+                    "hp-x/Empty": {"accept": [], "reject": [], "unknown": []},
+                    "hp-x/Real": {"accept": [], "reject": [], "unknown": ["A"]},
+                }}) + "\n")
+            edits = [ReviewEdit.from_review(o) for o in load_review(path)]
+            kept = [e for e in edits if not e.is_wildcard and e.values()]
+            self.assertEqual([e.path for e in kept], ["hp-x/Real"])
+
+
 class PolicyShowTest(unittest.TestCase):
     @staticmethod
     def _policy(**kw):
