@@ -238,6 +238,12 @@ support a manual review → merge workflow. See PLAN.md.
   sequence ambiguity delay. Added `curses.set_escdelay(0)` so a lone ESC
   registers immediately. 94 tests pass.
 
+### Step 29 — quit immediately on q
+- Removed the blocking `getch()` pause after saving: pressing `q` (or accepting
+  the last-option save prompt) now exits the TUI immediately instead of waiting
+  for an extra keypress. The "review saved to…" message is shown on the restored
+  terminal. 94 tests pass.
+
 ### Step 18 — regression: --wildcard-all preserves existing decisions
 - Added an end-to-end regression test locking in that `check --review` followed
   by `policy update --wildcard-all` (with an unedited review) only wildcards

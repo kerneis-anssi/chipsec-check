@@ -63,8 +63,6 @@ def run(edits: List[ReviewEdit], path: str, stdscr, start_path: Optional[str] = 
 
         if key == ord("q"):
             _save_decisions(edits, acts[target], path)
-            _flash(stdscr, f"Saved {len(edits)} options to {path}")
-            stdscr.getch()
             return True
         if key == ord("x"):
             if _confirm(stdscr, "Discard changes and quit? (y/N)"):
@@ -75,8 +73,6 @@ def run(edits: List[ReviewEdit], path: str, stdscr, start_path: Optional[str] = 
             if target == count - 1:
                 if _confirm(stdscr, "This is the last option. Save and quit? (y/N)"):
                     _save_decisions(edits, acts[target], path)
-                    _flash(stdscr, f"Saved {len(edits)} options to {path}")
-                    stdscr.getch()
                     return True
                 target = 0  # "no": wrap back to the first option
             else:
