@@ -1,4 +1,4 @@
-"""Command-line interface: ``check`` (analyze) and ``policy`` (merge, show; later review)."""
+"""Command-line interface: ``check`` (analyze) and ``policy`` (update, show; later review)."""
 
 from __future__ import annotations
 
@@ -64,11 +64,11 @@ def cmd_check(args: argparse.Namespace, stream=None) -> int:
         if review_path == "auto" or review_path is None:
             review_path = args.input + ".review.json"
         # Refuse to clobber an existing review file: re-running "check" (instead
-        # of "policy merge") must not lose a prior, possibly-edited review.
+        # of "policy update") must not lose a prior, possibly-edited review.
         if os.path.exists(review_path):
             print(
                 f"error: review file {review_path} already exists; refusing to "
-                "overwrite it. Merge (or move) it first, or pick a new --review path.",
+                "overwrite it. Update (or move) it first, or pick a new --review path.",
                 file=sys.stderr,
             )
             return 1
@@ -80,7 +80,7 @@ def cmd_check(args: argparse.Namespace, stream=None) -> int:
     return 0
 
 
-def cmd_merge(args: argparse.Namespace) -> int:
+def cmd_update(args: argparse.Namespace) -> int:
     try:
         policy = load_policy(args.policy) if os.path.exists(args.policy) else Policy()
         entries = load_review(args.review)
@@ -89,7 +89,7 @@ def cmd_merge(args: argparse.Namespace) -> int:
         print(f"error: {exc}", file=sys.stderr)
         return 1
     save_policy(policy, args.policy, backup=args.backup)
-    msg = f"merged {applied} entries into {args.policy}"
+    msg = f"updated {applied} entries into {args.policy}"
     if skipped:
         msg += f" (skipped {skipped} undecided)"
     print(msg)
@@ -133,16 +133,16 @@ def build_parser() -> argparse.ArgumentParser:
                        help="write review file here (default: <input>.review.json)")
     check.set_defaults(func=cmd_check)
 
-    # "policy" will later host "review", ... alongside "merge" and "show".
+    # "policy" will later host "review", ... alongside "update" and "show".
     policy = sub.add_parser("policy", help="manage the policy database")
     policy_sub = policy.add_subparsers(dest="policy_command", required=True)
-    merge = policy_sub.add_parser("merge", help="merge a reviewed file into the policy")
-    merge.add_argument("--review", metavar="REVIEW", required=True, help="review JSON file")
-    merge.add_argument("--policy", required=True, help="policy JSON database (updated in place)")
-    merge.add_argument("--wildcard-all", action="store_true",
-                       help="treat every 'review' decision as a wildcard")
-    merge.add_argument("--backup", action="store_true", help="keep a .bak copy of the policy")
-    merge.set_defaults(func=cmd_merge)
+    update = policy_sub.add_parser("update", help="update the policy from a reviewed file")
+    update.add_argument("--review", metavar="REVIEW", required=True, help="review JSON file")
+    update.add_argument("--policy", required=True, help="policy JSON database (updated in place)")
+    update.add_argument("--wildcard-all", action="store_true",
+                        help="treat every 'review' decision as a wildcard")
+    update.add_argument("--backup", action="store_true", help="keep a .bak copy of the policy")
+    update.set_defaults(func=cmd_update)
 
     show = policy_sub.add_parser("show", help="pretty-print the policy database")
     show.add_argument("--policy", required=True, action="append",

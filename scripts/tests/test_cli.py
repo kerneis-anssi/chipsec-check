@@ -62,7 +62,7 @@ class CheckReviewOverwriteTest(unittest.TestCase):
         self.assertTrue(os.path.exists(self.review_path))
 
 
-class PolicyMergeDispatchTest(unittest.TestCase):
+class PolicyUpdateDispatchTest(unittest.TestCase):
     def setUp(self):
         self._tmp = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, self._tmp)
@@ -80,8 +80,8 @@ class PolicyMergeDispatchTest(unittest.TestCase):
         with open(self.review_path, "w", encoding="utf-8") as fh:
             fh.write(json.dumps(review) + "\n")
 
-    def test_policy_merge_dispatch(self):
-        rc = cli.main(["policy", "merge", "--review", self.review_path,
+    def test_policy_update_dispatch(self):
+        rc = cli.main(["policy", "update", "--review", self.review_path,
                        "--policy", self.policy_path])
         self.assertEqual(rc, 0)
         with open(self.policy_path, encoding="utf-8") as fh:
@@ -199,7 +199,7 @@ class PolicyShowTest(unittest.TestCase):
 
 
 class WildcardAllPreservesDecisionsTest(unittest.TestCase):
-    """check --review then policy merge --wildcard-all (unedited) must not
+    """check --review then policy update --wildcard-all (unedited) must not
     lose existing accept/reject decisions -- only undecided options become
     wildcards."""
 
@@ -251,10 +251,10 @@ class WildcardAllPreservesDecisionsTest(unittest.TestCase):
         self.assertEqual(review["review"]["hp-x/Audio"]["accept"], ["On"])
         self.assertEqual(review["review"]["hp-x/Audio"]["reject"], ["Muted"])
 
-        # Step 2: merge --wildcard-all without editing the review.
-        rc = cli.cmd_merge(Namespace(review=self.review_path,
-                                     policy=self.policy_path,
-                                     wildcard_all=True, backup=False))
+        # Step 2: update --wildcard-all without editing the review.
+        rc = cli.cmd_update(Namespace(review=self.review_path,
+                                      policy=self.policy_path,
+                                      wildcard_all=True, backup=False))
         self.assertEqual(rc, 0)
 
         # Audio's existing accept/reject are preserved (not turned into a

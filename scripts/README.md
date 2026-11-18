@@ -9,7 +9,7 @@ Full design notes: see `PLAN.md`. Progress: see `PROGRESS.md`.
 
 ```
 check         <dumpfile> --policy POLICY [--review REVIEW]
-policy merge  --review REVIEW --policy POLICY [--wildcard-all] [--backup]
+policy update --review REVIEW --policy POLICY [--wildcard-all] [--backup]
 policy show   --policy POLICY [--show-wildcards last|inline|no]
 ```
 
@@ -19,12 +19,12 @@ policy show   --policy POLICY [--show-wildcards last|inline|no]
    (Pipe to `tee report.txt` to save the stdout report.)
 2. A human edits the review file, moving values into `accept`/`reject` (or set
    `wildcard: true`) for each option.
-3. `policy merge` applies those decisions to the policy database.
+3. `policy update` applies those decisions to the policy database.
 
 `--policy` (on `check` and `policy show`) may be a single file, a comma-separated
 list of files, a directory (all `*.json` inside, non-recursively, sorted), or be
 repeated. Entries are merged; a given option key must appear in at most one
-source, otherwise loading fails with a conflict error. (`policy merge` requires
+source, otherwise loading fails with a conflict error. (`policy update` requires
 a single policy file, which it updates in place.)
 
 ## Quick start
@@ -41,7 +41,7 @@ python3 fwsetup check bios-settings.json \
 # or set "wildcard": true to accept any value for that option.
 
 # Apply the reviewed decisions to the policy
-python3 fwsetup policy merge --review review.json --policy policy.json --backup
+python3 fwsetup policy update --review review.json --policy policy.json --backup
 
 # Pretty-print the policy (grouped values per option; wildcards last)
 fwsetup policy show --policy policy.json
@@ -148,16 +148,16 @@ for "don't care") — exactly as they would in the policy file.
 Only options still needing a decision appear. `unknown` lists every enumerated
 value (or the current value, for a scalar) not yet covered by `accept`/`reject`
 — not just the currently-selected value — so a value is only "retired" once you
-explicitly move it into `accept` or `reject` (or wildcard the option). `policy merge`
+explicitly move it into `accept` or `reject` (or wildcard the option). `policy update`
 applies each option's final `accept`/`reject` lists (or `wildcard`) to the
 policy — the reviewed lists **replace** any prior policy entry, they don't
 merge. An option the
 reviewer leaves fully undecided (empty `accept`/`reject` and no `wildcard`) is
-**skipped silently** (no policy entry is created/changed), and `policy merge`
+**skipped silently** (no policy entry is created/changed), and `policy update`
 reports how many were skipped. With `--wildcard-all`, every undecided option is instead
 promoted to a wildcard — handy since wildcard is the common case.
 
-`policy merge` creates new policy rows for options previously unknown, so accepting a
+`policy update` creates new policy rows for options previously unknown, so accepting a
 value for a brand-new option bootstraps it into the policy.
 
 ## Tests

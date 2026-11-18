@@ -156,7 +156,7 @@ support a manual review → merge workflow. See PLAN.md.
   (both an explicit `--review PATH` and the auto-named `<input>.review.json`),
   returning a non-zero exit instead of clobbering a prior, possibly-edited
   review. This protects against accidentally re-running `check` instead of
-  `policy merge` and losing review work.
+  `policy update` and losing review work.
 - Tests: `tests/test_cli.py` — overwrite refusal for explicit and auto-named
   review paths (target file left untouched), and the happy-path write for a new
   file. 48 tests pass.
@@ -164,9 +164,9 @@ support a manual review → merge workflow. See PLAN.md.
 ### Step 14 — reorganize the CLI verbs
 - Renamed the analyze verb `dump` → `check` (`fwsetup check`).
 - Moved `merge` under a new **`policy`** subcommand: `fwsetup
-  policy merge …`. The `policy` subcommand is deliberately structured to host
+  policy update …`. The `policy` subcommand is deliberately structured to host
   future `policy show` and `policy review` verbs later.
-- Updated the CLI parser, handlers, tests (incl. a new `policy merge` dispatch
+- Updated the CLI parser, handlers, tests (incl. a new `policy update` dispatch
   test) and the README/PLAN usage docs.
 
 ### Step 15 — policy show
@@ -188,9 +188,15 @@ support a manual review → merge workflow. See PLAN.md.
   and the JSON output. Tests cover write-on-show, ordering, and the
   `no` mode omission. Docs updated in README/PLAN.
 
+### Step 23 — rename policy merge to policy update
+- Renamed the `policy merge` subcommand to `policy update` to match its
+  replace-not-combine semantics (reviewed accept/reject replace the policy
+  entry). `cmd_merge` → `cmd_update`; user-facing messages and docs updated.
+  Internal `merge_review()` keeps its name. 63 tests pass.
+
 ### Step 18 — regression: --wildcard-all preserves existing decisions
 - Added an end-to-end regression test locking in that `check --review` followed
-  by `policy merge --wildcard-all` (with an unedited review) only wildcards
+  by `policy update --wildcard-all` (with an unedited review) only wildcards
   genuinely undecided options: existing non-empty `accept`/`reject` entries are
   preserved rather than turned into wildcards. 56 tests pass.
 
@@ -199,7 +205,7 @@ support a manual review → merge workflow. See PLAN.md.
   single file, a comma-separated list, a directory (all `*.json` inside,
   non-recursively, sorted), or a repeatable flag. Entries are merged; a key
   appearing in more than one source is a hard conflict error (fail-closed).
-- `policy merge` keeps a single policy file that it updates in place.
+- `policy update` keeps a single policy file that it updates in place.
 - Added `load_policies()`/`_expand_policy_sources()` in `policy.py` plus tests
   (merge, comma/multi-flag, directory non-recursive, conflict error). 60 tests
   pass.
