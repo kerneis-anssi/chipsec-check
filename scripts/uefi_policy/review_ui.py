@@ -125,12 +125,13 @@ def _render(stdscr, edits: List[ReviewEdit], target: int, count: int, msg: Optio
         _write(stdscr, 1, 0, f"current: {edit.current}", w)
 
     row = 3
+    width_lim = max(0, w - 1)
     for i, value in enumerate(edit.values()):
         line = _prefix(edit.classify(value)) + value
         if i == edit.cursor:
-            stdscr.addnstr(row, 0, line[: w - 1], curses.A_REVERSE)
+            stdscr.addnstr(row, 0, line, min(width_lim, len(line)), curses.A_REVERSE)
         else:
-            stdscr.addnstr(row, 0, line[: w - 1])
+            stdscr.addnstr(row, 0, line, min(width_lim, len(line)))
         row += 1
         if row >= h - 2:
             break
@@ -152,7 +153,8 @@ def _prefix(membership: str) -> str:
 
 def _write(stdscr, y: int, x: int, text: str, width: int) -> None:
     try:
-        stdscr.addnstr(y, x, text[: width - 1])
+        n = max(0, min(width - 1, len(text)))
+        stdscr.addnstr(y, x, text, n)
     except curses.error:
         pass
 
@@ -160,7 +162,7 @@ def _write(stdscr, y: int, x: int, text: str, width: int) -> None:
 def _flash(stdscr, text: str) -> None:
     try:
         h, w = stdscr.getmaxyx()
-        stdscr.addnstr(h - 2, 0, text[: w - 1], curses.A_BOLD)
+        stdscr.addnstr(h - 2, 0, text, max(0, min(w - 1, len(text))), curses.A_BOLD)
         stdscr.refresh()
     except curses.error:
         pass
