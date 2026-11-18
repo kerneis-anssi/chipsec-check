@@ -65,6 +65,15 @@ def cmd_dump(args: argparse.Namespace, stream=None) -> int:
         review_path = args.review
         if review_path == "auto" or review_path is None:
             review_path = args.input + ".review.json"
+        # Refuse to clobber an existing review file: re-running "dump" (instead
+        # of "merge") must not lose a prior, possibly-edited review.
+        if os.path.exists(review_path):
+            print(
+                f"error: review file {review_path} already exists; refusing to "
+                "overwrite it. Merge (or move) it first, or pick a new --review path.",
+                file=sys.stderr,
+            )
+            return 1
         save_review(review, review_path)
         print(f"review file ({len(review)} entries) written to {review_path}")
     elif args.review and args.review != "auto":

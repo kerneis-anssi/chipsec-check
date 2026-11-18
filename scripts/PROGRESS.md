@@ -151,6 +151,16 @@ support a manual review → merge workflow. See PLAN.md.
   missing `review` object); `test_analyze.py` assertions updated for the
   per-option `unknown` lists. 42 tests pass.
 
+### Step 13 — dump refuses to overwrite an existing review file
+- `cmd_dump` now refuses to write a review file if its target already exists
+  (both an explicit `--review PATH` and the auto-named `<input>.review.json`),
+  returning a non-zero exit instead of clobbering a prior, possibly-edited
+  review. This protects against accidentally re-running `dump` instead of
+  `merge` and losing review work.
+- Tests: `tests/test_cli.py` — overwrite refusal for explicit and auto-named
+  review paths (target file left untouched), and the happy-path write for a new
+  file. 48 tests pass.
+
 ### Step 12 — allow accept+reject together in one option
 - Decided to flag `UNKNOWN_VALUE` for the full enumerable `possible_values` set
   (not just the current value), so every newly-possible enum value must be
