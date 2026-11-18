@@ -10,6 +10,11 @@ from uefi_policy.policy import Policy, PolicyEntry
 _ORDER = [Status.VIOLATION, Status.UNKNOWN_OPTION, Status.UNKNOWN_VALUE, Status.OK, Status.IGNORED]
 
 
+def _drop_vendor(path: str) -> str:
+    """Return the option key without its vendor prefix (first path segment)."""
+    return path.split("/", 1)[-1]
+
+
 def _truncate(text: str, width: int) -> str:
     """Truncate *text* to *width*, with the ellipsis overriding the last 3
     characters so the result is no longer than *width* (keeps column alignment)."""
@@ -30,7 +35,7 @@ def build_report(results: Sequence[Result]) -> str:
         current = _truncate(
             (result.option.current_value or "").replace("\n", "\\n"), 40
         )
-        path = _truncate(result.option.path, 50)
+        path = _truncate(_drop_vendor(result.option.path), 50)
         lines.append(f"{path:<50} {current:<40} {status.value}")
         by_status[status] = by_status.get(status, 0) + 1
 
@@ -46,8 +51,7 @@ def build_report(results: Sequence[Result]) -> str:
         lines.append("Violations:")
         for r in violations:
             current = (r.option.current_value or "").replace("\n", "\\n")
-            # Drop the vendor prefix (first path segment) for readability.
-            key = r.option.path.split("/", 1)[-1]
+            key = _drop_vendor(r.option.path)
             lines.append(f"  {key}: {current}")
     return "\n".join(lines)
 

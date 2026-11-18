@@ -54,6 +54,16 @@ class AnalyzeTest(unittest.TestCase):
         results = evaluate([mk_option("hp-x/Good", "Enable", ["Enable"])], policy)
         self.assertNotIn("Violations:", build_report(results))
 
+    def test_table_drops_vendor_prefix(self):
+        policy = Policy(entries={"hp-x/Bad": PolicyEntry(reject=["Disable"])})
+        results = evaluate([mk_option("hp-x/Bad", "Disable", ["Disable", "Enable"])],
+                           policy)
+        report = build_report(results)
+        # Table row uses the vendor-free key, not the full path.
+        body = report.split("Summary:")[0]
+        self.assertIn("\nBad", body)
+        self.assertNotIn("hp-x/Bad", body)
+
     def test_unknown_value_review(self):
         # Only "Enable" accepted; "Disable" unreviewed -> UNKNOWN_VALUE + current OK.
         policy = Policy(entries={"hp-x/Foo": PolicyEntry(accept=["Enable"])})

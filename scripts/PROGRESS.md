@@ -210,6 +210,14 @@ support a manual review → merge workflow. See PLAN.md.
   The section is omitted when there are no violations. Tests added;
   62 tests pass.
 
+### Step 21 — drop vendor prefix in check table
+- The `check` report table's OPTION column now shows the option key without its
+  vendor prefix (e.g. `Secure Boot` instead of `hp-x/Secure Boot`), consistent
+  with the `Violations:` section. The full key is still used everywhere it
+  identifies the option for tooling: policy/review JSON output, `policy show`,
+  and the `--json` output. Added a shared `_drop_vendor()` helper and a table
+  test. 63 tests pass.
+
 ### Step 16 — rename the CLI tool to fwsetup
 - Renamed the entry-point script `analyze_uefi_cfg.py` → `fwsetup`, and the
   `argparse` `prog` is now `fwsetup`. Updated all command invocations in the
