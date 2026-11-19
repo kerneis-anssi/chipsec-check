@@ -1,0 +1,210 @@
+"""Command-line interface: ``check`` (analyze) and ``policy`` (update, show; later review)."""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import sys
+from typing import List, Optional
+
+from uefi_policy.analyze import evaluate, gather_review
+from uefi_policy.parsers import available, create, detect
+from uefi_policy.policy import (POLICY_VERSION, Policy, PolicyError, load_policies,
+                                load_policy, load_review, review_progress, merge_review,
+                                save_policy, save_review)
+from uefi_policy.reports import build_report, format_policy, ordered_entries, write_report
+from uefi_policy.review import ReviewEdit
+from uefi_policy.review_ui import run as run_review_tui
+
+
+def _read_source(path: str) -> str:
+    with open(path, "rb") as fh:
+        raw = fh.read()
+    if raw.startswith(b"\xff\xfe") or raw.startswith(b"\xfe\xff"):
+        return raw.decode("utf-16")
+    try:
+        return raw.decode("utf-8")
+    except UnicodeDecodeError:
+        return raw.decode("latin-1", errors="replace")
+
+
+def cmd_check(args: argparse.Namespace, stream=None) -> int:
+    stream = stream or sys.stdout
+    try:
+        if os.path.isdir(args.input):
+            # A directory: assume /sys/class/firmware-attributes (or a copy).
+            if args.format not in ("auto", "sysfs-dir"):
+                raise ValueError(
+                    f"input {args.input!r} is a directory, expected --format auto "
+                    "or sysfs-dir"
+                )
+            parser = create("sysfs-dir")
+            options = parser.parse(args.input)
+        else:
+            source = _read_source(args.input)
+            if args.format == "auto":
+                parser = detect(source)
+            else:
+                parser = create(args.format)
+            options = parser.parse(source)
+        policy = load_policies(args.policy)
+    except PolicyError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    except ValueError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+
+    results = evaluate(options, policy)
+    report = build_report(results)
+    write_report(report, stream)
+
+    review = gather_review(results, policy)
+    if args.review is None:
+        # No --review: never create a review file implicitly.
+        return 0
+    if not review:
+        print(f"no unknown options/values; no review file written ({args.review})")
+        return 0
+    # Refuse to clobber an existing review file: re-running "check" (instead
+    # of "policy update") must not lose a prior, possibly-edited review.
+    if os.path.exists(args.review):
+        print(
+            f"error: review file {args.review} already exists; refusing to "
+            "overwrite it. Update (or move) it first, or pick a new --review path.",
+            file=sys.stderr,
+        )
+        return 1
+    save_review(review, args.review)
+    print(f"review file ({len(review)} entries) written to {args.review}")
+
+    return 0
+
+
+def cmd_update(args: argparse.Namespace) -> int:
+    try:
+        policy = load_policy(args.policy) if os.path.exists(args.policy) else Policy()
+        entries = load_review(args.review)
+        applied, skipped = merge_review(policy, entries, wildcard_all=args.wildcard_all)
+    except PolicyError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    save_policy(policy, args.policy, backup=args.backup)
+    msg = f"updated {applied} entries into {args.policy}"
+    if skipped:
+        msg += f" (skipped {skipped} undecided)"
+    print(msg)
+    return 0
+
+
+def cmd_review(args: argparse.Namespace) -> int:
+    try:
+        entries = load_review(args.review)
+        start_path = review_progress(args.review)
+    except PolicyError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    edits = [ReviewEdit.from_review(o) for o in entries] or []
+    if not edits:
+        print(f"no options to review in {args.review}")
+        return 0
+    try:
+        import curses
+
+        saved = curses.wrapper(
+            lambda stdscr: run_review_tui(edits, args.review, stdscr, start_path=start_path)
+        )
+    except KeyboardInterrupt:
+        print("cancelled")
+        return 1
+    if saved:
+        print(f"review saved to {args.review}")
+    else:
+        print("review discarded (progress only)")
+    return 0
+
+
+def cmd_show(args: argparse.Namespace, stream=None) -> int:
+    stream = stream or sys.stdout
+    try:
+        policy = load_policies(args.policy)
+    except PolicyError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    if args.json:
+        data = {
+            "version": POLICY_VERSION,
+            "policy": {key: entry.to_dict()
+                       for key, entry in ordered_entries(policy, args.show_wildcards)},
+        }
+        with open(args.json, "w", encoding="utf-8") as fh:
+            json.dump(data, fh, indent=2, ensure_ascii=False)
+            fh.write("\n")
+        print(f"policy JSON written to {args.json}")
+    text = format_policy(policy, args.show_wildcards)
+    stream.write(text + ("\n" if text else ""))
+    return 0
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(prog="fwsetup", description=__doc__)
+    sub = parser.add_subparsers(dest="command", required=False)
+
+    check = sub.add_parser("check", help="analyze a configuration dump against a policy")
+    check.add_argument("input", help="path to a config dump file or a sysfs firmware-attributes directory")
+    check.add_argument("--format", default="auto", choices=["auto"] + available(),
+                       help="input parser (default: auto-detect)")
+    check.add_argument("--policy", required=True, action="append",
+                       help="policy JSON database; may be a file, a comma-separated "
+                            "list, or a directory (loads all *.json, non-recursive); "
+                            "repeatable")
+    check.add_argument("--review", metavar="FILE",
+                       help="write the review file here (no review file is created "
+                            "unless this is given)")
+    check.set_defaults(func=cmd_check)
+
+    # "policy" will later host "review", ... alongside "update" and "show".
+    policy = sub.add_parser("policy", help="manage the policy database")
+    policy_sub = policy.add_subparsers(dest="policy_command", required=True)
+    update = policy_sub.add_parser("update", help="update the policy from a reviewed file")
+    update.add_argument("--review", metavar="REVIEW", required=True, help="review JSON file")
+    update.add_argument("--policy", required=True, help="policy JSON database (updated in place)")
+    update.add_argument("--wildcard-all", action="store_true",
+                        help="treat every 'review' decision as a wildcard")
+    update.add_argument("--backup", action="store_true", help="keep a .bak copy of the policy")
+    update.set_defaults(func=cmd_update)
+
+    review = policy_sub.add_parser("review", help="interactively review options in a review file")
+    review.add_argument("--review", required=True, help="review JSON file to edit in place")
+    review.set_defaults(func=cmd_review)
+
+    show = policy_sub.add_parser("show", help="pretty-print the policy database")
+    show.add_argument("--policy", required=True, action="append",
+                      help="policy JSON database; may be a file, a comma-separated "
+                           "list, or a directory (loads all *.json, non-recursive); "
+                           "repeatable")
+    show.add_argument("--show-wildcards", metavar="MODE",
+                      choices=("last", "inline", "no"), default="last",
+                      help="how to display wildcard-only entries: last (default), "
+                           "inline, or no (omit them)")
+    show.add_argument("--json", metavar="OUT",
+                      help="also write the policy as JSON, ordered per "
+                           "--show-wildcards")
+    show.set_defaults(func=cmd_show)
+
+    return parser
+
+
+def main(argv: Optional[List[str]] = None) -> int:
+    parser = build_parser()
+    args = parser.parse_args(argv)
+    if not hasattr(args, "func"):
+        parser.print_help()
+        return 2
+    try:
+        return args.func(args)
+    except PolicyError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    except BrokenPipeError:
+        return 0

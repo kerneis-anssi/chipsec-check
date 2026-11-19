@@ -1,0 +1,1 @@
+"""UEFI configuration policy analyzer."""

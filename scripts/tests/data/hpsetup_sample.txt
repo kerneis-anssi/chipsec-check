@@ -1,0 +1,11 @@
+Secure Boot
+	Disable
+	*Enable
+Product Name
+	HP EliteBook 640
+UEFI Boot Order
+	HDD:M.2:1
+	HDD:USB:1
+TPM State
+	Disable
+	*Enable

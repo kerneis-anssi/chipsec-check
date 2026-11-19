@@ -1,0 +1,26 @@
+{
+  "BiosSettings": [
+    {
+      "Name": "Secure Boot",
+      "Filename": "/sys/class/firmware-attributes/hp-bioscfg/attributes/Secure Boot",
+      "BiosSettingId": "com.hp-bioscfg.Secure_Boot",
+      "BiosSettingCurrentValue": "Enable",
+      "BiosSettingType": 1,
+      "BiosSettingPossibleValues": ["Disable", "Enable"]
+    },
+    {
+      "Name": "Save!Restore GPT of System Hard Drive",
+      "Filename": "/sys/class/firmware-attributes/hp-bioscfg/attributes/Save!Restore GPT of System Hard Drive",
+      "BiosSettingId": "com.hp-bioscfg.Save_Restore_GPT_of_System_Hard_Drive",
+      "BiosSettingCurrentValue": "Disabled",
+      "BiosSettingType": 1,
+      "BiosSettingPossibleValues": ["Disabled", "Enabled"]
+    },
+    {
+      "Name": "Product Name",
+      "Filename": "/sys/class/firmware-attributes/hp-bioscfg/attributes/Product Name",
+      "BiosSettingCurrentValue": "HP EliteBook 640",
+      "BiosSettingType": 3
+    }
+  ]
+}
