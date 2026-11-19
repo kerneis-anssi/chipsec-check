@@ -14,6 +14,7 @@ class Status(str, Enum):
     VIOLATION = "VIOLATION"
     UNKNOWN_OPTION = "UNKNOWN_OPTION"
     UNKNOWN_VALUE = "UNKNOWN_VALUE"
+    DENIED = "DENIED"  # could not read the value (e.g. /sys permission denied)
     IGNORED = "IGNORED"
 
 
@@ -36,6 +37,9 @@ class Option:
             ``min_length``, ``upper_bound``, ``display_name``).
         raw_path: The full unprefixed path as read (e.g.
             ``hp-bioscfg/attributes/Secure Boot``) for mapping back to sysfs.
+        denied: Names of attribute files that could not be read for this option
+            (e.g. a permission error on ``/sys``), so the failure surfaces as
+            ``Status.DENIED`` instead of the value silently being absent.
     """
 
     path: str
@@ -45,6 +49,7 @@ class Option:
     current_value: Optional[str] = None
     metadata: dict = field(default_factory=dict)
     raw_path: Optional[str] = None
+    denied: List[str] = field(default_factory=list)
 
     @property
     def is_policy_checkable(self) -> bool:
@@ -66,6 +71,8 @@ class Result:
         """Report which must surface in review."""
         if Status.VIOLATION in self.statuses:
             return Status.VIOLATION
+        if Status.DENIED in self.statuses:
+            return Status.DENIED
         if Status.UNKNOWN_OPTION in self.statuses:
             return Status.UNKNOWN_OPTION
         if Status.UNKNOWN_VALUE in self.statuses:

@@ -3,6 +3,7 @@
 import os
 import tempfile
 import unittest
+from unittest import mock
 
 from uefi_policy.parsers import create
 
@@ -64,6 +65,24 @@ class SysfsDirParserTest(unittest.TestCase):
         with tempfile.NamedTemporaryFile() as fh:
             with self.assertRaises(ValueError):
                 create("sysfs-dir").parse(fh.name)
+
+    def test_unreadable_attribute_recorded_as_denied(self):
+        # Force _read_file to raise OSError for the current_value file so the
+        # parser must record the denial rather than silently dropping it.
+        boot_attr = os.path.join(DATA, "hp-bioscfg", "attributes", "Secure Boot")
+        cur = os.path.join(boot_attr, "current_value")
+
+        def fake_read(path, *a, **kw):
+            if os.path.abspath(path) == os.path.abspath(cur):
+                raise PermissionError(cur)
+            return open(path, encoding="utf-8").read().rstrip("\r\n")
+
+        with mock.patch("uefi_policy.parsers.sysfs_dir._read_file", side_effect=fake_read):
+            options = create("sysfs-dir").parse(DATA)
+        boot = next(o for o in options if o.path == "hp-bioscfg/Secure Boot")
+        self.assertEqual(boot.denied, ["current_value"])
+        # Other fields for the same option were still read.
+        self.assertEqual(boot.possible_values, ["Disable", "Enable"])
 
 
 if __name__ == "__main__":

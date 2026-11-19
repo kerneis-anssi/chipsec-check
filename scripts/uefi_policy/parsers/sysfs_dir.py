@@ -76,6 +76,7 @@ class SysfsDirParser(BaseParser):
 
     def _parse_option(self, vendor: str, optname: str, dirpath: str) -> Option:
         fields: dict = {}
+        denied: List[str] = []
         for attr in sorted(os.listdir(dirpath)):
             attr_path = os.path.join(dirpath, attr)
             if not os.path.isfile(attr_path):
@@ -83,8 +84,9 @@ class SysfsDirParser(BaseParser):
             try:
                 fields[attr] = _read_file(attr_path)
             except OSError:
-                # Unreadable sysfs node; carry on with the rest.
-                continue
+                # Unreadable sysfs node (e.g. permission denied): record it so the
+                # value surfaces as DENIED rather than silently missing.
+                denied.append(attr)
 
         current_value = fields.get("current_value")
         possible = None
@@ -109,6 +111,7 @@ class SysfsDirParser(BaseParser):
             current_value=current_value,
             metadata=metadata,
             raw_path=raw_path,
+            denied=denied,
         )
 
     @staticmethod

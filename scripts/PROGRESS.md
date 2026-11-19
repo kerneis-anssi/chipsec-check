@@ -244,6 +244,15 @@ support a manual review → merge workflow. See PLAN.md.
   for an extra keypress. The "review saved to…" message is shown on the restored
   terminal. 94 tests pass.
 
+### Step 31 — DENIED status for unreadable /sys values
+- Added `Status.DENIED` and an `Option.denied` field. The sysfs-dir parser no
+  longer silently drops an unreadable attribute file; it records the attribute
+  name so the option's check surfaces as `DENIED`. `evaluate_option()` appends
+  `DENIED` up front; `primary_status`/summary ordering rank it just below
+  `VIOLATION`. A permission-denied `current_value` now shows `DENIED` instead
+  of the option silently having no value. Tests: parser denied-attrs, analyze
+  DENIED status/primary, report summary count. 98 tests pass.
+
 ### Step 30 — no implicit review file
 - `check` no longer auto-creates a review file named `<input>.review.json` when
   `--review` is omitted. A review file is written only with an explicit

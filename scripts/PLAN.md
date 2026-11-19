@@ -142,8 +142,11 @@ against `accept`/`reject` exactly like an enumeration value. Numeric range /
 min-length constraints are out of scope for v1 but the schema can be extended
 later.
 
-Statuses: `OK`, `VIOLATION`, `UNKNOWN_OPTION`, `UNKNOWN_VALUE`
-(and `IGNORED` for type-less metadata rows — not real options). A typed option
+Statuses: `OK`, `VIOLATION`, `UNKNOWN_OPTION`, `UNKNOWN_VALUE`,
+`DENIED`, `IGNORED`. `DENIED` marks an option whose value couldn't be read
+(e.g. a `/sys` permission error), so the check is inconclusive instead of the
+value silently appearing absent. `IGNORED` is for type-less metadata rows —
+not real options. A typed option
 with no `current_value` in the dump is still evaluated (not ignored): with an
 empty policy it is `UNKNOWN_OPTION`, and if policy-covered it is
 `UNKNOWN_VALUE` (nothing to compare) unless wildcarded.

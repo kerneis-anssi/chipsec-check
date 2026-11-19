@@ -54,6 +54,10 @@ def _dedup(values: Sequence[str]) -> List[str]:
 
 def evaluate_option(option: Option, policy: Policy) -> Result:
     result = Result(option=option)
+    # An unreadable attribute (e.g. /sys permission denied) must surface
+    # regardless of the evaluation branches below.
+    if option.denied:
+        result.statuses.append(Status.DENIED)
     if not option.is_policy_checkable:
         # Pure metadata row (no type): not a real option, skip it.
         result.statuses.append(Status.IGNORED)

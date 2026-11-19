@@ -88,6 +88,33 @@ class AnalyzeTest(unittest.TestCase):
         r = evaluate([opt], policy)[0]
         self.assertIn(Status.IGNORED, r.statuses)
 
+    def test_denied_adds_DENIED_status(self):
+        # An unreadable /sys value must surface as DENIED, not vanish.
+        policy = Policy(entries={"hp-x/Foo": PolicyEntry(reject=["Disable"])})
+        opt = mk_option("hp-x/Foo", "Disable", ["Disable", "Enable"])
+        opt.denied = ["current_value"]
+        r = evaluate([opt], policy)[0]
+        self.assertIn(Status.DENIED, r.statuses)
+
+    def test_denied_primary_outranks_unknown(self):
+        # DENIED surfaces even when the remaining data yields UNKNOWN_VALUE.
+        policy = Policy(entries={"hp-x/Foo": PolicyEntry(accept=["Enable"])})
+        opt = mk_option("hp-x/Foo", None, ["Disable", "Enable"])
+        opt.denied = ["current_value"]
+        r = evaluate([opt], policy)[0]
+        self.assertIn(Status.DENIED, r.statuses)
+        self.assertEqual(r.primary_status, Status.DENIED)
+
+    def test_report_summary_counts_denied(self):
+        policy = Policy(entries={"hp-x/Foo": PolicyEntry(reject=["Disable"])})
+        # Realistic: the current value is unreadable -> absent, and DENIED.
+        opt = mk_option("hp-x/Foo", None, ["Disable", "Enable"])
+        opt.denied = ["current_value"]
+        r = evaluate([opt], policy)[0]
+        report = build_report([r])
+        self.assertIn("DENIED", report)
+        self.assertIn("DENIED           1", report)
+
     def test_unset_string_not_ignored_empty_policy(self):
         # A typed string option with no current value is a real option: with an
         # empty policy it should be UNKNOWN_OPTION, not IGNORED.

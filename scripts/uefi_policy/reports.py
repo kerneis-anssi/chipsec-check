@@ -7,7 +7,7 @@ from typing import IO, List, Sequence, Tuple
 from uefi_policy.model import Result, Status
 from uefi_policy.policy import Policy, PolicyEntry
 
-_ORDER = [Status.VIOLATION, Status.UNKNOWN_OPTION, Status.UNKNOWN_VALUE, Status.OK, Status.IGNORED]
+_ORDER = [Status.VIOLATION, Status.DENIED, Status.UNKNOWN_OPTION, Status.UNKNOWN_VALUE, Status.OK, Status.IGNORED]
 
 
 def _drop_vendor(path: str) -> str:

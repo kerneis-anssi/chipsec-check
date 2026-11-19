@@ -1,1 +1,1 @@
-- add a new status "DENIED" and use it to track permission issues when reading files from /sys
+- (add TODO items here)

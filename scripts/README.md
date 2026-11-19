@@ -125,6 +125,8 @@ Rules:
 
 - `OK`            — current value is explicitly accepted (or option is wildcard).
 - `VIOLATION`     — current value is explicitly rejected (or nothing is accepted).
+- `DENIED`        — an attribute file couldn't be read (e.g. `/sys` permission
+                   denied), so the value is absent and uncheckable.
 - `UNKNOWN_OPTION`— option not present in the policy.
 - `UNKNOWN_VALUE` — option is present but some value isn't covered yet.
 - `IGNORED`       — not a real option (no `type`, e.g. a metadata row).
