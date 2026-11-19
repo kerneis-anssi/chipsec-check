@@ -15,9 +15,10 @@ policy show   --policy POLICY [--show-wildcards last|inline|no]
 ```
 
 1. `check` parses the configuration dump, evaluates each option against the
-   policy, prints a report to stdout, and writes
-   a **review file** listing every option the policy doesn't fully cover yet.
-   (Pipe to `tee report.txt` to save the stdout report.)
+   policy, prints a report to stdout. With `--review FILE` it also writes a
+   **review file** listing every option the policy doesn't fully cover yet (no
+   review file is created unless `--review` is given). (Pipe to `tee report.txt`
+   to save the stdout report.)
 2. A human edits the review file, moving values into `accept`/`reject` (or set
    `wildcard: true`) for each option.
 3. `policy update` applies those decisions to the policy database. (Or edit the

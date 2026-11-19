@@ -244,6 +244,14 @@ support a manual review → merge workflow. See PLAN.md.
   for an extra keypress. The "review saved to…" message is shown on the restored
   terminal. 94 tests pass.
 
+### Step 30 — no implicit review file
+- `check` no longer auto-creates a review file named `<input>.review.json` when
+  `--review` is omitted. A review file is written only with an explicit
+  `--review FILE`. Dropped the `nargs=?`/`auto` bare form of the flag; the
+  overwrite protection now applies to the explicit path. Updated tests (a
+  `test_no_review_file_when_flag_absent` replaces the auto-overwrite case) and
+  README/PLAN. 94 tests pass.
+
 ### Step 18 — regression: --wildcard-all preserves existing decisions
 - Added an end-to-end regression test locking in that `check --review` followed
   by `policy update --wildcard-all` (with an unedited review) only wildcards

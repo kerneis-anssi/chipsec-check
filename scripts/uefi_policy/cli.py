@@ -61,23 +61,23 @@ def cmd_check(args: argparse.Namespace, stream=None) -> int:
     write_report(report, stream)
 
     review = gather_review(results, policy)
-    if review:
-        review_path = args.review
-        if review_path == "auto" or review_path is None:
-            review_path = args.input + ".review.json"
-        # Refuse to clobber an existing review file: re-running "check" (instead
-        # of "policy update") must not lose a prior, possibly-edited review.
-        if os.path.exists(review_path):
-            print(
-                f"error: review file {review_path} already exists; refusing to "
-                "overwrite it. Update (or move) it first, or pick a new --review path.",
-                file=sys.stderr,
-            )
-            return 1
-        save_review(review, review_path)
-        print(f"review file ({len(review)} entries) written to {review_path}")
-    elif args.review and args.review != "auto":
+    if args.review is None:
+        # No --review: never create a review file implicitly.
+        return 0
+    if not review:
         print(f"no unknown options/values; no review file written ({args.review})")
+        return 0
+    # Refuse to clobber an existing review file: re-running "check" (instead
+    # of "policy update") must not lose a prior, possibly-edited review.
+    if os.path.exists(args.review):
+        print(
+            f"error: review file {args.review} already exists; refusing to "
+            "overwrite it. Update (or move) it first, or pick a new --review path.",
+            file=sys.stderr,
+        )
+        return 1
+    save_review(review, args.review)
+    print(f"review file ({len(review)} entries) written to {args.review}")
 
     return 0
 
@@ -158,8 +158,9 @@ def build_parser() -> argparse.ArgumentParser:
                        help="policy JSON database; may be a file, a comma-separated "
                             "list, or a directory (loads all *.json, non-recursive); "
                             "repeatable")
-    check.add_argument("--review", nargs="?", const="auto", default=None,
-                       help="write review file here (default: <input>.review.json)")
+    check.add_argument("--review", metavar="FILE",
+                       help="write the review file here (no review file is created "
+                            "unless this is given)")
     check.set_defaults(func=cmd_check)
 
     # "policy" will later host "review", ... alongside "update" and "show".

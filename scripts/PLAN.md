@@ -222,7 +222,7 @@ simply not evaluated.
 ## 6. CLI design (single script, subcommands)
 
 ```
-fwsetup check         <dumpfile> [--policy POL] [--review REVIEW|auto]
+fwsetup check         <dumpfile> [--policy POL] [--review FILE]
 fwsetup policy update --review REVIEW [--policy POL] [--backup]
 fwsetup policy review --review REVIEW
 fwsetup policy show   --policy POL [--show-wildcards last|inline|no] [--json OUT]
@@ -235,8 +235,9 @@ fwsetup policy show   --policy POL [--show-wildcards last|inline|no] [--json OUT
 - `--policy` policy JSON database(s): a file, a comma-separated list, a directory
   (all `*.json`, non-recursive, sorted), or repeatable. Merged; a key appearing in
   more than one source is a conflict error.
-- `--review` path for the review file (auto-named if omitted: `<input>.review.json`).
-  (Save the stdout report with `| tee report.txt`; there is no `--report` flag.)
+- `--review FILE` path for the review file (only written when given;
+  no review file is created implicitly). (Save the stdout report with
+  `| tee report.txt`; there is no `--report` flag.)
 
 `policy update`:
 - `--review`, `--policy` (default same policy), `--backup` to keep pre-merge copy.

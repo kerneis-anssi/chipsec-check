@@ -44,17 +44,11 @@ class CheckReviewOverwriteTest(unittest.TestCase):
         with open(self.review_path, encoding="utf-8") as fh:
             self.assertEqual(fh.read(), sentinel)
 
-    def test_refuses_to_overwrite_auto_named_review(self):
-        auto_path = self.input_path + ".review.json"
-        sentinel = "# previous review\n"
-        with open(auto_path, "w", encoding="utf-8") as fh:
-            fh.write(sentinel)
-
+    def test_no_review_file_when_flag_absent(self):
+        # Without --review, check must NOT create an implicit review file.
         rc = cli.cmd_check(self.args(review=None), stream=io.StringIO())
-
-        self.assertEqual(rc, 1)
-        with open(auto_path, encoding="utf-8") as fh:
-            self.assertEqual(fh.read(), sentinel)
+        self.assertEqual(rc, 0)
+        self.assertFalse(os.path.exists(self.input_path + ".review.json"))
 
     def test_writes_review_when_file_is_new(self):
         rc = cli.cmd_check(self.args(review=self.review_path), stream=io.StringIO())
